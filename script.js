@@ -10,21 +10,187 @@ var width = (canvas.width = 600),
 const ctx = canvas.getContext("2d");
 
 // orrery declarations
-// TODO: group under template?
-var centerX = 300;
-var centerY = 300;
-var sunDist = 265;
-var monthDist = 250;
-var satDist = 200;
-var jupDist = 170;
-var marDist = 140;
-var venDist = 110;
-var merDist = 80;
+var Orrery = {
+  x: 300,
+  y: 300,
+  sunDist: 265,
+  monthDist: 250,
+  textDist: 215,
+  satDist: 200,
+  jupDist: 170,
+  marDist: 140,
+  venDist: 110,
+  merDist: 80,
+  mooDist: 50,
+};
 
+// state
+
+// colors
+const nearBlack = "#1e1e1e";
+const offWhite = "rgb(255,250,250)";
+
+const satRingColor = nearBlack;
+const jupRingColor = "#dcbc95";
+const marRingColor = "red";
+const venRingColor = "green";
+const merRingColor = "purple";
+
+const satColor = "grey";
+const jupColor = "#dcbc95";
+const marColor = "red";
+const venColor = "green";
+const merColor = "purple";
+
+const testingGlow = ctx.createRadialGradient(
+  Orrery.x,
+  Orrery.y,
+  50,
+  Orrery.x,
+  Orrery.y,
+  60
+);
+testingGlow.addColorStop(0, "white");
+testingGlow.addColorStop(1, "rgb(255 255 255 / 0%");
+
+/**
+ * Draws a new frame for the Orrery's canvas.
+ * Intended to be called by requestAnimationFrame.
+ *
+ * @param {DOMHighResTimeStamp} timeElapsed the end time of the previous
+ * frame's rendering
+ */
+function draw(timeElapsed = 0) {
+  // Background
+  ctx.fillStyle = "black";
+  // ctx.fillStyle = "rgb(0,0,0)";
+  ctx.fillRect(0, 0, width, height);
+
+  drawOrrery();
+}
+
+// canvas.addEventListener(
+//   "click",
+//   function (event) {
+//     var x = event.pageX - canvasLeft,
+//       y = event.pageY - canvasTop;
+//     radius = dist(Orrery.centerX, Orrery.centerY, x, y);
+//     console.log(radius);
+//     if (radius <= 50) {
+//       stateTesting.glow = !stateTesting.glow;
+//       requestAnimationFrame(draw);
+//     }
+//   },
+//   false
+// );
+
+/**
+ * Draws the Orrery ring by ring
+ */
+function drawOrrery() {
+  //Sun ring
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "red";
+  ctx.beginPath();
+  ctx.arc(Orrery.x, Orrery.y, Orrery.sunDist, deg_0, deg_360);
+  ctx.stroke();
+
+  //Rings
+  rings = [
+    { fillStyle: offWhite, radius: Orrery.monthDist },
+    { fillStyle: satRingColor, radius: Orrery.satDist },
+    { fillStyle: jupRingColor, radius: Orrery.jupDist },
+    { fillStyle: marRingColor, radius: Orrery.marDist },
+    { fillStyle: venRingColor, radius: Orrery.venDist },
+    { fillStyle: merRingColor, radius: Orrery.merDist },
+    { fillStyle: offWhite, radius: Orrery.mooDist },
+  ];
+
+  for (ring of rings) {
+    ctx.fillStyle = ring.fillStyle;
+    ctx.beginPath();
+    ctx.arc(Orrery.x, Orrery.y, ring.radius, deg_0, deg_360, false);
+    ctx.fill();
+  }
+  //Text
+  drawMonthText();
+
+  //Divisions
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = nearBlack;
+  subdivide(Orrery.x, Orrery.y, Orrery.monthDist, Orrery.satDist, 12, 0);
+
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = offWhite;
+  subdivide(Orrery.x, Orrery.y, Orrery.satDist, Orrery.jupDist, 36, 5);
+
+  ctx.strokeStyle = nearBlack;
+  subdivide(Orrery.x, Orrery.y, Orrery.jupDist, Orrery.mooDist, 12, 0);
+
+  ctx.setLineDash([5, 3]);
+  subdivide(Orrery.x, Orrery.y, Orrery.jupDist, Orrery.mooDist, 12, 15);
+  subdivide(Orrery.x, Orrery.y, Orrery.jupDist, Orrery.marDist, 24, 7.5);
+  ctx.setLineDash([]);
+
+  //Tokens
+  ctx.fillStyle = satColor;
+  ctx.beginPath();
+  ctx.arc(Orrery.x, Orrery.y, Orrery.satDist, degToRad(-5), degToRad(5), false);
+  ctx.lineTo(
+    Orrery.x + Orrery.jupDist * Math.cos(degToRad(5)),
+    Orrery.y + Orrery.jupDist * Math.sin(degToRad(5))
+  );
+  ctx.arc(Orrery.x, Orrery.y, Orrery.jupDist, degToRad(5), degToRad(-5), true);
+  ctx.fill();
+
+  function drawMonthText() {
+    ctx.save();
+    ctx.translate(Orrery.x, Orrery.y);
+    ctx.rotate(degToRad(15));
+
+    ctx.fillStyle = nearBlack;
+    ctx.textAlign = "center";
+    ctx.font = "25px serif";
+
+    for (const sign of [
+      "Aries",
+      "Taurus",
+      "Gemini",
+      "Cancer",
+      "Leo",
+      "Virgo",
+      "Libra",
+      "Scorpio",
+      "Sagittarius",
+      "Capricorn",
+      "Aquarius",
+      "Pisces",
+    ]) {
+      ctx.fillText(sign, 0, -Orrery.textDist);
+      ctx.rotate(degToRad(30));
+    }
+
+    ctx.restore();
+  }
+}
+
+// helper constants
+const deg_0 = degToRad(0);
+const deg_360 = degToRad(360);
+
+// helper functions
 function degToRad(degrees) {
   return (degrees * Math.PI) / 180;
 }
-
+/**
+ * Divides a ring into equal parts
+ * @param {Number} centerX the x-coord of the Orrery's center
+ * @param {Number} centerY the y-coord of the Orrery's center
+ * @param {Number} outerRadius
+ * @param {Number} innerRadius
+ * @param {Number} divisions number of divisions
+ * @param {Number} offsetAngle offset from the vertical of the first division
+ */
 function subdivide(
   centerX,
   centerY,
@@ -48,93 +214,8 @@ function subdivide(
   }
 }
 
-ctx.fillStyle = "rgb(0,0,0)";
-ctx.fillRect(0, 0, width, height);
-
-ctx.fillStyle = "rgb(255,0,0)";
-ctx.beginPath();
-ctx.arc(300, 300, 50, degToRad(0), degToRad(360), false);
-ctx.fill();
-
-// drawOrrery();
-
-// canvas.addEventListener(
-//   "click",
-//   function (event) {
-//     var x = event.pageX - canvasLeft,
-//       y = event.pageY - canvasTop;
-//     ctx.fillStyle = "rgb(255,0,0)";
-//     ctx.beginPath();
-//     ctx.arc(x, y, 20, degToRad(0), degToRad(360), false);
-//     ctx.fill();
-//   },
-//   false
-// );
-
-function drawOrrery() {
-  ctx.lineWidth = 3;
-  // sun circle
-  ctx.strokeStyle = "rgb(255,0,0)";
-  ctx.beginPath();
-  ctx.arc(centerX, centerY, sunDist, degToRad(0), degToRad(360), false);
-  ctx.stroke();
-
-  // months
-  ctx.fillStyle = "rgb(255,250,250)";
-  ctx.beginPath();
-  ctx.arc(centerX, centerY, monthDist, degToRad(0), degToRad(360), false);
-  ctx.fill();
-
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = "#767777";
-  subdivide(centerX, centerY, monthDist, satDist, 12, 0);
-
-  ctx.translate(centerX, centerY);
-  ctx.rotate(degToRad(15));
-
-  ctx.fillStyle = "#767777";
-  ctx.textAlign = "center";
-  ctx.font = "25px serif";
-
-  for (const sign of [
-    "Aries",
-    "Taurus",
-    "Gemini",
-    "Cancer",
-    "Leo",
-    "Virgo",
-    "Libra",
-    "Scorpio",
-    "Sagittarius",
-    "Capricorn",
-    "Aquarius",
-    "Pisces",
-  ]) {
-    ctx.fillText(sign, 0, -215);
-    ctx.rotate(degToRad(30));
-  }
-
-  ctx.rotate(degToRad(-15));
-
-  ctx.translate(-300, -300);
-
-  //Saturn
-  ctx.fillStyle = "#1e1e1e";
-  ctx.beginPath();
-  ctx.arc(centerX, centerY, satDist, degToRad(0), degToRad(360), false);
-  ctx.fill();
-
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = "#f3f0f0";
-  subdivide(centerX, centerY, satDist, jupDist, 36, 5);
-
-  // jupiter
-  ctx.fillStyle = "#dcbc95";
-  ctx.beginPath();
-  ctx.arc(centerX, centerY, jupDist, degToRad(0), degToRad(360), false);
-  ctx.fill();
-
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = "#1e1e1e";
-  subdivide(centerX, centerY, jupDist, marDist, 24, 0);
+function dist(x1, y1, x2, y2) {
+  return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
 }
+
+draw();
