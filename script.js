@@ -9,22 +9,17 @@ var width = (canvas.width = 600),
 // const height = (canvas.height = window.innerHeight);
 const ctx = canvas.getContext("2d");
 
-// orrery declarations
-var Orrery = {
-  x: 300,
-  y: 300,
-  sunDist: 265,
-  monthDist: 250,
-  textDist: 215,
-  satDist: 200,
-  jupDist: 170,
-  marDist: 140,
-  venDist: 110,
-  merDist: 80,
-  mooDist: 50,
-};
-
-// state
+var centerX = width / 2;
+var centerY = height / 2;
+var sunDist = 265;
+var monthDist = 250;
+var textDist = 215;
+var satDist = 200;
+var jupDist = 170;
+var marDist = 140;
+var venDist = 110;
+var merDist = 80;
+var mooDist = 50;
 
 // colors
 const nearBlack = "#1e1e1e";
@@ -42,16 +37,46 @@ const marColor = "red";
 const venColor = "green";
 const merColor = "purple";
 
-const testingGlow = ctx.createRadialGradient(
-  Orrery.x,
-  Orrery.y,
-  50,
-  Orrery.x,
-  Orrery.y,
-  60
-);
-testingGlow.addColorStop(0, "white");
-testingGlow.addColorStop(1, "rgb(255 255 255 / 0%");
+/**
+ * A planet on the Orrery, representing both the token and the ring it is on.
+ */
+class Planet {
+  outerRadius;
+  innerRadius;
+  span;
+  ccwAngle;
+  tokenColor;
+
+  constructor(outerRadius, innerRadius, span, ccwAngle, tokenColor) {
+    this.outerRadius = outerRadius;
+    this.innerRadius = innerRadius;
+    this.span = span;
+    this.ccwAngle = ccwAngle;
+    this.tokenColor = tokenColor;
+  }
+
+  /**
+   * Returns whether a position is within the bounds of the planet's token.
+   * @param {Number} x the x-offset relative to the center of the Orrery.
+   * @param {*} y the y-offset relative to the center of the Orrery.
+   */
+  withinToken(x, y) {
+    var radius = Math.sqrt(x ** 2 + y ** 2),
+      angle = radToDeg(vecToAngle(x, y));
+    return (
+      radius > this.innerRadius &&
+      radius < this.outerRadius &&
+      posMod(angle - this.ccwAngle, 360) < this.span
+    );
+  }
+}
+
+var Sat = new Planet(satDist, jupDist, 10, 355, satColor);
+var Jup = new Planet(jupDist, marDist, 10, 355, jupColor);
+var Mar = new Planet(marDist, venDist, 10, 355, marColor);
+var Ven = new Planet(venDist, merDist, 10, 355, venColor);
+var Mer = new Planet(merDist, mooDist, 10, 355, merColor);
+var XXX = new Planet(satDist, jupDist, 10, 355, satColor);
 
 /**
  * Draws a new frame for the Orrery's canvas.
@@ -63,26 +88,34 @@ testingGlow.addColorStop(1, "rgb(255 255 255 / 0%");
 function draw(timeElapsed = 0) {
   // Background
   ctx.fillStyle = "black";
-  // ctx.fillStyle = "rgb(0,0,0)";
   ctx.fillRect(0, 0, width, height);
 
   drawOrrery();
 }
 
-// canvas.addEventListener(
-//   "click",
-//   function (event) {
-//     var x = event.pageX - canvasLeft,
-//       y = event.pageY - canvasTop;
-//     radius = dist(Orrery.centerX, Orrery.centerY, x, y);
-//     console.log(radius);
-//     if (radius <= 50) {
-//       stateTesting.glow = !stateTesting.glow;
-//       requestAnimationFrame(draw);
-//     }
-//   },
-//   false
-// );
+canvas.addEventListener(
+  "click",
+  function (event) {
+    var mouseX = event.pageX - canvasLeft - centerX,
+      mouseY = event.pageY - canvasTop - centerY,
+      mouseRadius = Math.sqrt(mouseX ** 2 + mouseY ** 2),
+      mouseAngle = radToDeg(vecToAngle(mouseX, mouseY));
+    console.log(
+      `${mouseX}, ${mouseY}\nangle: ${mouseAngle}\nsat diff: ${posMod(
+        mouseAngle - Sat.ccwAngle,
+        360
+      )}`
+    );
+    if (
+      mouseRadius > Sat.innerRadius &&
+      mouseRadius < Sat.outerRadius &&
+      posMod(mouseAngle - Sat.ccwAngle, 360) < Sat.span
+    ) {
+      console.log("that's saturn!");
+    }
+  },
+  false
+);
 
 /**
  * Draws the Orrery ring by ring
@@ -92,24 +125,24 @@ function drawOrrery() {
   ctx.lineWidth = 3;
   ctx.strokeStyle = "red";
   ctx.beginPath();
-  ctx.arc(Orrery.x, Orrery.y, Orrery.sunDist, deg_0, deg_360);
+  ctx.arc(centerX, centerY, sunDist, deg_0, deg_360);
   ctx.stroke();
 
   //Rings
   rings = [
-    { fillStyle: offWhite, radius: Orrery.monthDist },
-    { fillStyle: satRingColor, radius: Orrery.satDist },
-    { fillStyle: jupRingColor, radius: Orrery.jupDist },
-    { fillStyle: marRingColor, radius: Orrery.marDist },
-    { fillStyle: venRingColor, radius: Orrery.venDist },
-    { fillStyle: merRingColor, radius: Orrery.merDist },
-    { fillStyle: offWhite, radius: Orrery.mooDist },
+    { fillStyle: offWhite, radius: monthDist },
+    { fillStyle: satRingColor, radius: satDist },
+    { fillStyle: jupRingColor, radius: jupDist },
+    { fillStyle: marRingColor, radius: marDist },
+    { fillStyle: venRingColor, radius: venDist },
+    { fillStyle: merRingColor, radius: merDist },
+    { fillStyle: offWhite, radius: mooDist },
   ];
 
   for (ring of rings) {
     ctx.fillStyle = ring.fillStyle;
     ctx.beginPath();
-    ctx.arc(Orrery.x, Orrery.y, ring.radius, deg_0, deg_360, false);
+    ctx.arc(centerX, centerY, ring.radius, deg_0, deg_360, false);
     ctx.fill();
   }
   //Text
@@ -118,34 +151,35 @@ function drawOrrery() {
   //Divisions
   ctx.lineWidth = 2;
   ctx.strokeStyle = nearBlack;
-  subdivide(Orrery.x, Orrery.y, Orrery.monthDist, Orrery.satDist, 12, 0);
+  subdivide(centerX, centerY, monthDist, satDist, 12, 0);
 
   ctx.lineWidth = 1;
   ctx.strokeStyle = offWhite;
-  subdivide(Orrery.x, Orrery.y, Orrery.satDist, Orrery.jupDist, 36, 5);
+  subdivide(centerX, centerY, satDist, jupDist, 36, 5);
 
   ctx.strokeStyle = nearBlack;
-  subdivide(Orrery.x, Orrery.y, Orrery.jupDist, Orrery.mooDist, 12, 0);
+  subdivide(centerX, centerY, jupDist, mooDist, 12, 0);
 
   ctx.setLineDash([5, 3]);
-  subdivide(Orrery.x, Orrery.y, Orrery.jupDist, Orrery.mooDist, 12, 15);
-  subdivide(Orrery.x, Orrery.y, Orrery.jupDist, Orrery.marDist, 24, 7.5);
+  subdivide(centerX, centerY, jupDist, mooDist, 12, 15);
+  subdivide(centerX, centerY, jupDist, marDist, 24, 7.5);
   ctx.setLineDash([]);
 
   //Tokens
+
   ctx.fillStyle = satColor;
   ctx.beginPath();
-  ctx.arc(Orrery.x, Orrery.y, Orrery.satDist, degToRad(-5), degToRad(5), false);
+  ctx.arc(centerX, centerY, satDist, degToRad(-5), degToRad(5), false);
   ctx.lineTo(
-    Orrery.x + Orrery.jupDist * Math.cos(degToRad(5)),
-    Orrery.y + Orrery.jupDist * Math.sin(degToRad(5))
+    centerX + jupDist * Math.cos(degToRad(5)),
+    centerY + jupDist * Math.sin(degToRad(5))
   );
-  ctx.arc(Orrery.x, Orrery.y, Orrery.jupDist, degToRad(5), degToRad(-5), true);
+  ctx.arc(centerX, centerY, jupDist, degToRad(5), degToRad(-5), true);
   ctx.fill();
 
   function drawMonthText() {
     ctx.save();
-    ctx.translate(Orrery.x, Orrery.y);
+    ctx.translate(centerX, centerY);
     ctx.rotate(degToRad(15));
 
     ctx.fillStyle = nearBlack;
@@ -166,7 +200,7 @@ function drawOrrery() {
       "Aquarius",
       "Pisces",
     ]) {
-      ctx.fillText(sign, 0, -Orrery.textDist);
+      ctx.fillText(sign, 0, -textDist);
       ctx.rotate(degToRad(30));
     }
 
@@ -179,9 +213,53 @@ const deg_0 = degToRad(0);
 const deg_360 = degToRad(360);
 
 // helper functions
+/**
+ * Converts an angle in degrees to radians
+ * @param {Number} degrees
+ * @returns
+ */
 function degToRad(degrees) {
   return (degrees * Math.PI) / 180;
 }
+
+/**
+ * Converts an angle in radians to degrees
+ * @param radians An angle in degrees.
+ */
+function radToDeg(radians) {
+  return (radians * 180) / Math.PI;
+}
+/**
+ * Returns the angle in radians between a 2d vector and the x-axis.
+ * @param {Number} xComponent
+ * @param {Number} yComponent
+ * @returns
+ */
+function vecToAngle(xComponent, yComponent) {
+  if (xComponent >= 0) {
+    return (Math.atan(yComponent / xComponent) + Math.PI * 2) % (Math.PI * 2);
+  } else {
+    return Math.atan(yComponent / xComponent) + Math.PI;
+  }
+}
+/**
+ * Returns a positive solution to n % m
+ * @param {Number} n
+ * @param {Number} m
+ */
+function posMod(n, m) {
+  return ((n % m) + m) % m;
+}
+// /**
+//  * Returns whether the order clockwise is A, N, B.
+//  * @param {Number} N an angle in degrees
+//  * @param {Number} A an angle in degrees
+//  * @param {Number} B an
+//  */
+// function angleBetweenAngles(N, A, B) {
+//   A = A % 360
+// }
+
 /**
  * Divides a ring into equal parts
  * @param {Number} centerX the x-coord of the Orrery's center
