@@ -1,16 +1,132 @@
 // Canvas declarations
 const canvas = document.querySelector(".myCanvas");
-var width = (canvas.width = 600),
-  height = (canvas.height = 600),
+var width = (height = canvas.width = 800),
+  height = (canvas.height = 800),
   canvasLeft = canvas.offsetLeft + canvas.clientLeft,
   canvasTop = canvas.offsetTop + canvas.clientTop;
-
-// const width = (canvas.width = window.innerWidth);
-// const height = (canvas.height = window.innerHeight);
+/** @type {CanvasRenderingContext2D} */
 const ctx = canvas.getContext("2d");
-
 var centerX = width / 2;
 var centerY = height / 2;
+
+class Ring {
+  outerRadius;
+  innerRadius;
+  ringFillStyle;
+
+  /**
+   *
+   * @param {Number} outerRadius
+   * @param {Number} innerRadius
+   * @param {string | CanvasGradient | CanvasPattern} ringFillStyle
+   */
+  constructor(outerRadius, innerRadius, ringFillStyle) {
+    this.outerRadius = outerRadius;
+    this.innerRadius = innerRadius;
+    this.ringFillStyle = ringFillStyle;
+  }
+
+  /**
+   * Draws the ring onto the given context. Does not do subdivisions or text!
+   * @param {CanvasRenderingContext2D} context
+   */
+  drawRing(context) {
+    context.fillStyle = this.ringFillStyle;
+    context.beginPath();
+    context.arc(centerX, centerY, this.outerRadius, deg_0, deg_360, false);
+    context.arc(centerX, centerY, this.innerRadius, deg_0, deg_360, true);
+    context.fill();
+  }
+
+  /**
+   * Returns whether a position is within the bounds of the planet's token.
+   * @param {Number} x the x-offset relative to the center of the Orrery, positive is right.
+   * @param {Number} y the y-offset relative to the center of the Orrery, positive is down.
+   */
+  withinRing(x, y) {
+    var radius = Math.sqrt(x ** 2 + y ** 2);
+    return radius > this.innerRadius && radius < this.outerRadius;
+  }
+}
+
+/**
+ * A planet on the Orrery, representing both the token and the ring it is on.
+ */
+class Planet extends Ring {
+  span;
+  wsAngle;
+  tokenFillStyle;
+
+  /**
+   *
+   * @param {Number} outerRadius
+   * @param {Number} innerRadius
+   * @param {string | CanvasGradient | CanvasPattern} ringFillStyle
+   * @param {Degrees} span
+   * @param {Degrees} wsAngle the widdershins angle of the token from the x-axis
+   * @param {string | CanvasGradient | CanvasPattern} tokenFillStyle
+   */
+  constructor(
+    outerRadius,
+    innerRadius,
+    ringFillStyle,
+    span,
+    wsAngle,
+    tokenFillStyle
+  ) {
+    super(outerRadius, innerRadius, ringFillStyle);
+    this.span = span;
+    this.wsAngle = wsAngle;
+    this.tokenFillStyle = tokenFillStyle;
+  }
+
+  get cwAngle() {
+    return this.wsAngle + this.span;
+  }
+
+  /**
+   * Draws a token onto the Planet's ring.
+   * @param {CanvasRenderingContext2D} context
+   */
+  drawToken(context) {
+    context.fillStyle = this.tokenFillStyle;
+    context.beginPath();
+    context.arc(
+      centerX,
+      centerY,
+      this.outerRadius,
+      degToRad(this.wsAngle),
+      degToRad(this.cwAngle),
+      false
+    );
+    context.lineTo(
+      centerX + this.innerRadius * Math.cos(degToRad(this.cwAngle)),
+      centerY + this.innerRadius * Math.sin(degToRad(this.cwAngle))
+    );
+    context.arc(
+      centerX,
+      centerY,
+      this.innerRadius,
+      degToRad(this.cwAngle),
+      degToRad(this.wsAngle),
+      true
+    );
+    context.fill();
+  }
+
+  /**
+   * Returns whether a position is within the bounds of the planet's token.
+   * @param {Number} x the x-offset relative to the center of the Orrery, positive is right.
+   * @param {Number} y the y-offset relative to the center of the Orrery, positive is down.
+   */
+  withinToken(x, y) {
+    var angle = radToDeg(vecToAngle(x, y));
+    return (
+      this.withinRing(x, y) && posMod(angle - this.wsAngle, 360) < this.span
+    );
+  }
+}
+
 var sunDist = 265;
 var monthDist = 250;
 var textDist = 215;
@@ -26,58 +142,32 @@ const nearBlack = "#1e1e1e";
 const offWhite = "rgb(255,250,250)";
 
 const satRingColor = nearBlack;
-const jupRingColor = "#dcbc95";
-const marRingColor = "red";
-const venRingColor = "green";
-const merRingColor = "purple";
+const jupRingColor = "#dcb894";
+const marRingColor = "#dda1a1";
+const venRingColor = "#efefd7";
+const merRingColor = "#d8c7e7";
 
-const satColor = "grey";
-const jupColor = "#dcbc95";
-const marColor = "red";
-const venColor = "green";
-const merColor = "purple";
+const satTokenColor = "#434343";
+const jupTokenColor = "#e69137";
+const marTokenColor = "#cc0001";
+const venTokenColor = "#69a84f";
+const merTokenColor = "#8d7cc2";
 
-/**
- * A planet on the Orrery, representing both the token and the ring it is on.
- */
-class Planet {
-  outerRadius;
-  innerRadius;
-  span;
-  ccwAngle;
-  tokenColor;
+var Months = new Ring(monthDist, satDist, offWhite);
+var Sat = new Planet(satDist, jupDist, satRingColor, 10, 355, satTokenColor);
+var Jup = new Planet(
+  jupDist,
+  marDist,
+  jupRingColor,
+  (360 / 48) * 3,
+  355,
+  jupTokenColor
+);
+var Mar = new Planet(marDist, venDist, marRingColor, 10, 355, marTokenColor);
+var Ven = new Planet(venDist, merDist, venRingColor, 10, 355, venTokenColor);
+var Mer = new Planet(merDist, mooDist, merRingColor, 10, 355, merTokenColor);
 
-  constructor(outerRadius, innerRadius, span, ccwAngle, tokenColor) {
-    this.outerRadius = outerRadius;
-    this.innerRadius = innerRadius;
-    this.span = span;
-    this.ccwAngle = ccwAngle;
-    this.tokenColor = tokenColor;
-  }
-
-  /**
-   * Returns whether a position is within the bounds of the planet's token.
-   * @param {Number} x the x-offset relative to the center of the Orrery.
-   * @param {*} y the y-offset relative to the center of the Orrery.
-   */
-  withinToken(x, y) {
-    var radius = Math.sqrt(x ** 2 + y ** 2),
-      angle = radToDeg(vecToAngle(x, y));
-    return (
-      radius > this.innerRadius &&
-      radius < this.outerRadius &&
-      posMod(angle - this.ccwAngle, 360) < this.span
-    );
-  }
-}
-
-var Sat = new Planet(satDist, jupDist, 10, 355, satColor);
-var Jup = new Planet(jupDist, marDist, 10, 355, jupColor);
-var Mar = new Planet(marDist, venDist, 10, 355, marColor);
-var Ven = new Planet(venDist, merDist, 10, 355, venColor);
-var Mer = new Planet(merDist, mooDist, 10, 355, merColor);
-var XXX = new Planet(satDist, jupDist, 10, 355, satColor);
-
+const bgColor = "#f0edec";
 /**
  * Draws a new frame for the Orrery's canvas.
  * Intended to be called by requestAnimationFrame.
@@ -85,37 +175,13 @@ var XXX = new Planet(satDist, jupDist, 10, 355, satColor);
  * @param {DOMHighResTimeStamp} timeElapsed the end time of the previous
  * frame's rendering
  */
-function draw(timeElapsed = 0) {
+function render(timeElapsed = 0) {
   // Background
-  ctx.fillStyle = "black";
+  ctx.fillStyle = bgColor;
   ctx.fillRect(0, 0, width, height);
 
   drawOrrery();
 }
-
-canvas.addEventListener(
-  "click",
-  function (event) {
-    var mouseX = event.pageX - canvasLeft - centerX,
-      mouseY = event.pageY - canvasTop - centerY,
-      mouseRadius = Math.sqrt(mouseX ** 2 + mouseY ** 2),
-      mouseAngle = radToDeg(vecToAngle(mouseX, mouseY));
-    console.log(
-      `${mouseX}, ${mouseY}\nangle: ${mouseAngle}\nsat diff: ${posMod(
-        mouseAngle - Sat.ccwAngle,
-        360
-      )}`
-    );
-    if (
-      mouseRadius > Sat.innerRadius &&
-      mouseRadius < Sat.outerRadius &&
-      posMod(mouseAngle - Sat.ccwAngle, 360) < Sat.span
-    ) {
-      console.log("that's saturn!");
-    }
-  },
-  false
-);
 
 /**
  * Draws the Orrery ring by ring
@@ -129,22 +195,14 @@ function drawOrrery() {
   ctx.stroke();
 
   //Rings
-  rings = [
-    { fillStyle: offWhite, radius: monthDist },
-    { fillStyle: satRingColor, radius: satDist },
-    { fillStyle: jupRingColor, radius: jupDist },
-    { fillStyle: marRingColor, radius: marDist },
-    { fillStyle: venRingColor, radius: venDist },
-    { fillStyle: merRingColor, radius: merDist },
-    { fillStyle: offWhite, radius: mooDist },
-  ];
+  Months.drawRing(ctx);
+  Sat.drawRing(ctx);
+  Sat.drawRing(ctx);
+  Jup.drawRing(ctx);
+  Mar.drawRing(ctx);
+  Ven.drawRing(ctx);
+  Mer.drawRing(ctx);
 
-  for (ring of rings) {
-    ctx.fillStyle = ring.fillStyle;
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, ring.radius, deg_0, deg_360, false);
-    ctx.fill();
-  }
   //Text
   drawMonthText();
 
@@ -166,16 +224,20 @@ function drawOrrery() {
   ctx.setLineDash([]);
 
   //Tokens
-
-  ctx.fillStyle = satColor;
-  ctx.beginPath();
-  ctx.arc(centerX, centerY, satDist, degToRad(-5), degToRad(5), false);
-  ctx.lineTo(
-    centerX + jupDist * Math.cos(degToRad(5)),
-    centerY + jupDist * Math.sin(degToRad(5))
-  );
-  ctx.arc(centerX, centerY, jupDist, degToRad(5), degToRad(-5), true);
-  ctx.fill();
+  Sat.drawToken(ctx);
+  Jup.drawToken(ctx);
+  Mar.drawToken(ctx);
+  Ven.drawToken(ctx);
+  Mer.drawToken(ctx);
+  // ctx.fillStyle = Sat.tokenFillStyle;
+  // ctx.beginPath();
+  // ctx.arc(centerX, centerY, satDist, degToRad(-5), degToRad(5), false);
+  // ctx.lineTo(
+  //   centerX + jupDist * Math.cos(degToRad(5)),
+  //   centerY + jupDist * Math.sin(degToRad(5))
+  // );
+  // ctx.arc(centerX, centerY, jupDist, degToRad(5), degToRad(-5), true);
+  // ctx.fill();
 
   function drawMonthText() {
     ctx.save();
@@ -207,6 +269,28 @@ function drawOrrery() {
     ctx.restore();
   }
 }
+
+// Interactivity
+canvas.addEventListener(
+  "click",
+  function (event) {
+    var mouseX = event.pageX - canvasLeft - centerX,
+      mouseY = event.pageY - canvasTop - centerY,
+      mouseRadius = Math.sqrt(mouseX ** 2 + mouseY ** 2);
+    console.log(
+      `${mouseX}, ${mouseY}\nangle: ${radToDeg(
+        vecToAngle(mouseX, mouseY)
+      )}\nsat diff: ${posMod(
+        radToDeg(vecToAngle(mouseX, mouseY)) - Sat.wsAngle,
+        360
+      )}`
+    );
+    if (Sat.withinToken(mouseX, mouseY)) {
+      console.log("that's saturn!");
+    }
+  },
+  false
+);
 
 // helper constants
 const deg_0 = degToRad(0);
@@ -296,4 +380,4 @@ function dist(x1, y1, x2, y2) {
   return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
 }
 
-draw();
+render();
