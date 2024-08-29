@@ -1,7 +1,7 @@
 // Canvas declarations
 const canvas = document.querySelector(".myCanvas");
-var width = (height = canvas.width = 800),
-  height = (canvas.height = 800),
+var width = (height = canvas.width = 700),
+  height = (canvas.height = 700),
   canvasLeft = canvas.offsetLeft + canvas.clientLeft,
   canvasTop = canvas.offsetTop + canvas.clientTop;
 /** @type {CanvasRenderingContext2D} */
@@ -9,20 +9,43 @@ const ctx = canvas.getContext("2d");
 var centerX = width / 2;
 var centerY = height / 2;
 
+var state = { clickToggle: false };
+
+/**
+ * @property {String} name
+ * @property {Number} numDivisions how many positions exist on the ring.
+ * @property {Number} divisionOffset The angle (in degrees) that the ws edge of the
+ * first division is offset from the x-axis.
+ */
 class Ring {
+  name;
   outerRadius;
   innerRadius;
+  numDivisions;
+  divisionOffset;
   ringFillStyle;
 
   /**
    *
    * @param {Number} outerRadius
    * @param {Number} innerRadius
+   * @param {Number} numDivisions
+   * @param {Number} divisionOffset the offset of the first division from the x-axis
    * @param {string | CanvasGradient | CanvasPattern} ringFillStyle
    */
-  constructor(outerRadius, innerRadius, ringFillStyle) {
+  constructor(
+    name,
+    outerRadius,
+    innerRadius,
+    numDivisions,
+    divisionOffset,
+    ringFillStyle
+  ) {
+    this.name = name;
     this.outerRadius = outerRadius;
     this.innerRadius = innerRadius;
+    this.numDivisions = numDivisions;
+    this.divisionOffset = divisionOffset;
     this.ringFillStyle = ringFillStyle;
   }
 
@@ -33,8 +56,8 @@ class Ring {
   drawRing(context) {
     context.fillStyle = this.ringFillStyle;
     context.beginPath();
-    context.arc(centerX, centerY, this.outerRadius, deg_0, deg_360, false);
-    context.arc(centerX, centerY, this.innerRadius, deg_0, deg_360, true);
+    context.arc(centerX, centerY, this.outerRadius, 0, deg_360, false);
+    context.arc(centerX, centerY, this.innerRadius, 0, deg_360, true);
     context.fill();
   }
 
@@ -51,37 +74,92 @@ class Ring {
 
 /**
  * A planet on the Orrery, representing both the token and the ring it is on.
+ * @property {Number} span How many divisions the token takes up.
+ * @property {Number} span the angle between the ws and cw edges.
+ * @property {Number} wsAngle the angle of the widdershins edge of the token.
+ * @property {Number} cwAngle the angle of the clockwise edge of the token.
+ * @property {Boolean} synced Whether the position matches the actual angles.
  */
 class Planet extends Ring {
   span;
-  wsAngle;
+  position;
   tokenFillStyle;
+  wsAngle;
+  #trueWsAngle;
+  synced;
 
   /**
    *
+   * @param {String} name
    * @param {Number} outerRadius
    * @param {Number} innerRadius
+   * @param {Number} numDivisions
+   * @param {Number} divisionOffset the offset of the first division from the x-axis
    * @param {string | CanvasGradient | CanvasPattern} ringFillStyle
-   * @param {Degrees} span
-   * @param {Degrees} wsAngle the widdershins angle of the token from the x-axis
+   * @param {Number} span
+   * @param {Number} position: which division shares a ws edge with the token (0-indexed from the first position on the x-axis)
    * @param {string | CanvasGradient | CanvasPattern} tokenFillStyle
    */
   constructor(
+    name,
     outerRadius,
     innerRadius,
+    numDivisions,
+    divisionOffset,
     ringFillStyle,
     span,
-    wsAngle,
+    position,
     tokenFillStyle
   ) {
-    super(outerRadius, innerRadius, ringFillStyle);
+    super(
+      name,
+      outerRadius,
+      innerRadius,
+      numDivisions,
+      divisionOffset,
+      ringFillStyle
+    );
     this.span = span;
-    this.wsAngle = wsAngle;
+    this.position = position;
     this.tokenFillStyle = tokenFillStyle;
+
+    this.setAngleFromPosition();
+  }
+
+  /**
+   * Sets the angle of the token from the current position.
+   */
+  setAngleFromPosition() {
+    this.wsAngle =
+      (360 / this.numDivisions) * this.position - this.divisionOffset;
+    this.synced = true;
+  }
+
+  setPositionFromAngle() {
+    //TODO make it so the token will snap to a position. Not sure how to determine which one.
+  }
+
+  /**
+   * @param {Degrees} n
+   */
+  set wsAngle(n) {
+    //setter is necessary so we always know if we desync
+    this.#trueWsAngle = n;
+    this.synced = false;
+  }
+
+  get wsAngle() {
+    return this.#trueWsAngle;
   }
 
   get cwAngle() {
-    return this.wsAngle + this.span;
+    return this.wsAngle + this.arc;
+  }
+  /**
+   * @returns {Degree}
+   */
+  get arc() {
+    return this.span * (360 / this.numDivisions);
   }
 
   /**
@@ -116,13 +194,22 @@ class Planet extends Ring {
 
   /**
    * Returns whether a position is within the bounds of the planet's token.
-   * @param {Number} x the x-offset relative to the center of the Orrery, positive is right.
-   * @param {Number} y the y-offset relative to the center of the Orrery, positive is down.
+   * @param {Degree} x the x-offset relative to the center of the Orrery, positive is right.
+   * @param {Degree} y the y-offset relative to the center of the Orrery, positive is down.
    */
   withinToken(x, y) {
     var angle = radToDeg(vecToAngle(x, y));
+    // if (this.withinRing(x, y)) {
+    //   console.log(
+    //     `debug: ${this.name}
+    //     mouse angle:    ${angle}
+    //     planet angle:   ${this.wsAngle}
+    //     planet arc:     ${this.arc}
+    //     mod difference: ${posMod(angle - this.wsAngle, 360)}`
+    //   );
+    // }
     return (
-      this.withinRing(x, y) && posMod(angle - this.wsAngle, 360) < this.span
+      this.withinRing(x, y) && posMod(angle - this.wsAngle, 360) < this.arc
     );
   }
 }
@@ -141,6 +228,10 @@ var mooDist = 50;
 const nearBlack = "#1e1e1e";
 const offWhite = "rgb(255,250,250)";
 
+const bgColorLite = "#f0edec";
+const bgColorDark = "#503020";
+
+const monRingColor = offWhite;
 const satRingColor = nearBlack;
 const jupRingColor = "#dcb894";
 const marRingColor = "#dda1a1";
@@ -153,21 +244,63 @@ const marTokenColor = "#cc0001";
 const venTokenColor = "#69a84f";
 const merTokenColor = "#8d7cc2";
 
-var Months = new Ring(monthDist, satDist, offWhite);
-var Sat = new Planet(satDist, jupDist, satRingColor, 10, 355, satTokenColor);
+var Mon = new Ring("Months", monthDist, satDist, 12, 0, monRingColor);
+var Sat = new Planet(
+  "Saturn",
+  satDist,
+  jupDist,
+  36,
+  -5,
+  satRingColor,
+  1,
+  3,
+  satTokenColor
+);
 var Jup = new Planet(
+  "Jupiter",
   jupDist,
   marDist,
+  48,
+  0,
   jupRingColor,
-  (360 / 48) * 3,
-  355,
+  3,
+  40,
   jupTokenColor
 );
-var Mar = new Planet(marDist, venDist, marRingColor, 10, 355, marTokenColor);
-var Ven = new Planet(venDist, merDist, venRingColor, 10, 355, venTokenColor);
-var Mer = new Planet(merDist, mooDist, merRingColor, 10, 355, merTokenColor);
+var Mar = new Planet(
+  "Mars",
+  marDist,
+  venDist,
+  24,
+  0,
+  marRingColor,
+  3,
+  22,
+  marTokenColor
+);
+var Ven = new Planet(
+  "Venus",
+  venDist,
+  merDist,
+  24,
+  0,
+  venRingColor,
+  5,
+  14,
+  venTokenColor
+);
+var Mer = new Planet(
+  "Mercury",
+  merDist,
+  mooDist,
+  24,
+  0,
+  merRingColor,
+  7,
+  12,
+  merTokenColor
+);
 
-const bgColor = "#f0edec";
 /**
  * Draws a new frame for the Orrery's canvas.
  * Intended to be called by requestAnimationFrame.
@@ -177,7 +310,8 @@ const bgColor = "#f0edec";
  */
 function render(timeElapsed = 0) {
   // Background
-  ctx.fillStyle = bgColor;
+
+  ctx.fillStyle = state.clickToggle ? bgColorDark : bgColorLite;
   ctx.fillRect(0, 0, width, height);
 
   drawOrrery();
@@ -191,11 +325,13 @@ function drawOrrery() {
   ctx.lineWidth = 3;
   ctx.strokeStyle = "red";
   ctx.beginPath();
-  ctx.arc(centerX, centerY, sunDist, deg_0, deg_360);
+  ctx.arc(centerX, centerY, sunDist, 0, deg_360);
   ctx.stroke();
 
   //Rings
-  Months.drawRing(ctx);
+  Mon.drawRing(ctx);
+  drawMonthText();
+
   Sat.drawRing(ctx);
   Sat.drawRing(ctx);
   Jup.drawRing(ctx);
@@ -204,7 +340,6 @@ function drawOrrery() {
   Mer.drawRing(ctx);
 
   //Text
-  drawMonthText();
 
   //Divisions
   ctx.lineWidth = 2;
@@ -229,15 +364,6 @@ function drawOrrery() {
   Mar.drawToken(ctx);
   Ven.drawToken(ctx);
   Mer.drawToken(ctx);
-  // ctx.fillStyle = Sat.tokenFillStyle;
-  // ctx.beginPath();
-  // ctx.arc(centerX, centerY, satDist, degToRad(-5), degToRad(5), false);
-  // ctx.lineTo(
-  //   centerX + jupDist * Math.cos(degToRad(5)),
-  //   centerY + jupDist * Math.sin(degToRad(5))
-  // );
-  // ctx.arc(centerX, centerY, jupDist, degToRad(5), degToRad(-5), true);
-  // ctx.fill();
 
   function drawMonthText() {
     ctx.save();
@@ -278,22 +404,15 @@ canvas.addEventListener(
       mouseY = event.pageY - canvasTop - centerY,
       mouseRadius = Math.sqrt(mouseX ** 2 + mouseY ** 2);
     console.log(
-      `${mouseX}, ${mouseY}\nangle: ${radToDeg(
-        vecToAngle(mouseX, mouseY)
-      )}\nsat diff: ${posMod(
-        radToDeg(vecToAngle(mouseX, mouseY)) - Sat.wsAngle,
-        360
-      )}`
+      `(${mouseX}, ${mouseY})\nangle: ${radToDeg(vecToAngle(mouseX, mouseY))}`
     );
-    if (Sat.withinToken(mouseX, mouseY)) {
-      console.log("that's saturn!");
-    }
+    state.clickToggle = state.clickToggle == false;
+    requestAnimationFrame(render);
   },
   false
 );
 
 // helper constants
-const deg_0 = degToRad(0);
 const deg_360 = degToRad(360);
 
 // helper functions
