@@ -56,8 +56,8 @@ class Ring {
   drawRing(context) {
     context.fillStyle = this.ringFillStyle;
     context.beginPath();
-    context.arc(centerX, centerY, this.outerRadius, 0, deg_360, false);
-    context.arc(centerX, centerY, this.innerRadius, 0, deg_360, true);
+    context.arc(centerX, centerY, this.outerRadius, 0, degToRad(360), false);
+    context.arc(centerX, centerY, this.innerRadius, 0, degToRad(360), true);
     context.fill();
   }
 
@@ -75,15 +75,16 @@ class Ring {
 /**
  * A planet on the Orrery, representing both the token and the ring it is on.
  * @property {Number} span How many divisions the token takes up.
- * @property {Number} span the angle between the ws and cw edges.
+ * @property {Number} arc the angle between the ws and cw edges.
  * @property {Number} wsAngle the angle of the widdershins edge of the token.
  * @property {Number} cwAngle the angle of the clockwise edge of the token.
  * @property {Boolean} synced Whether the position matches the actual angles.
  */
 class Planet extends Ring {
+  tokenFillStyle;
   span;
   position;
-  tokenFillStyle;
+  #truePosition;
   wsAngle;
   #trueWsAngle;
   synced;
@@ -126,6 +127,12 @@ class Planet extends Ring {
     this.setAngleFromPosition();
   }
 
+  advance() {
+    this.position += this.span;
+    this.wsAngle += this.arc;
+    requestAnimationFrame(render);
+  }
+
   /**
    * Sets the angle of the token from the current position.
    */
@@ -137,8 +144,24 @@ class Planet extends Ring {
 
   setPositionFromAngle() {
     //TODO make it so the token will snap to a position. Not sure how to determine which one.
+    console.warn(`${this.name} tried to set its position!`);
   }
 
+  /**
+   * @param {Number} n
+   */
+  set position(n) {
+    //setter is necessary so we always know if we desync
+    this.#truePosition = n;
+    this.synced = false;
+  }
+
+  /**
+   * @returns {Degree}
+   */
+  get position() {
+    return this.#truePosition;
+  }
   /**
    * @param {Degrees} n
    */
@@ -148,10 +171,16 @@ class Planet extends Ring {
     this.synced = false;
   }
 
+  /**
+   * @returns {Degree}
+   */
   get wsAngle() {
     return this.#trueWsAngle;
   }
 
+  /**
+   * @returns {Degree}
+   */
   get cwAngle() {
     return this.wsAngle + this.arc;
   }
@@ -325,7 +354,7 @@ function drawOrrery() {
   ctx.lineWidth = 3;
   ctx.strokeStyle = "red";
   ctx.beginPath();
-  ctx.arc(centerX, centerY, sunDist, 0, deg_360);
+  ctx.arc(centerX, centerY, sunDist, 0, degToRad(360));
   ctx.stroke();
 
   //Rings
@@ -395,25 +424,6 @@ function drawOrrery() {
     ctx.restore();
   }
 }
-
-// Interactivity
-canvas.addEventListener(
-  "click",
-  function (event) {
-    var mouseX = event.pageX - canvasLeft - centerX,
-      mouseY = event.pageY - canvasTop - centerY,
-      mouseRadius = Math.sqrt(mouseX ** 2 + mouseY ** 2);
-    console.log(
-      `(${mouseX}, ${mouseY})\nangle: ${radToDeg(vecToAngle(mouseX, mouseY))}`
-    );
-    state.clickToggle = state.clickToggle == false;
-    requestAnimationFrame(render);
-  },
-  false
-);
-
-// helper constants
-const deg_360 = degToRad(360);
 
 // helper functions
 /**
@@ -498,5 +508,27 @@ function subdivide(
 function dist(x1, y1, x2, y2) {
   return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
 }
+
+// Interactivity
+canvas.addEventListener(
+  "click",
+  function (event) {
+    // var mouseX = event.pageX - canvasLeft - centerX,
+    //   mouseY = event.pageY - canvasTop - centerY,
+    //   mouseRadius = Math.sqrt(mouseX ** 2 + mouseY ** 2);
+    // console.log(
+    //   `(${mouseX}, ${mouseY})\nangle: ${radToDeg(vecToAngle(mouseX, mouseY))}`
+    // );
+    // state.clickToggle = state.clickToggle == false;
+    for (const planet of [Sat, Jup, Mar, Ven, Mer]) {
+
+      console.debug(planet.name, planet.position, planet.wsAngle);
+      planet.advance();
+      console.debug(planet.name, planet.position, planet.wsAngle);
+    }
+    requestAnimationFrame(render);
+  },
+  false
+);
 
 render();
