@@ -1,2 +1,3 @@
 # Orrery
-An online tool for a shared Seven Part Pact orrery.
+
+An online tool for a Seven Part Pact orrery.
