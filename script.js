@@ -30,9 +30,10 @@ class CelestialBody {
   innerRadius;
   ringFillStyle;
 
+  tokenFillStyle;
+
   numDivisions;
   divisionOffset;
-  tokenFillStyle;
   span;
   position;
   #truePosition;
@@ -178,57 +179,6 @@ class CelestialBody {
   get divisionAngle() {
     return this.span * (360 / this.numDivisions);
   }
-
-  // /**
-  //  * Draws a token onto the Planet's ring.
-  //  * @param {CanvasRenderingContext2D} context
-  //  */
-  // drawToken(context) {
-  //   context.fillStyle = this.tokenFillStyle;
-  //   context.beginPath();
-  //   context.arc(
-  //     centerX,
-  //     centerY,
-  //     this.outerRadius,
-  //     degToRad(this.wsAngle),
-  //     degToRad(this.cwAngle),
-  //     false
-  //   );
-  //   context.lineTo(
-  //     centerX + this.innerRadius * Math.cos(degToRad(this.cwAngle)),
-  //     centerY + this.innerRadius * Math.sin(degToRad(this.cwAngle))
-  //   );
-  //   context.arc(
-  //     centerX,
-  //     centerY,
-  //     this.innerRadius,
-  //     degToRad(this.cwAngle),
-  //     degToRad(this.wsAngle),
-  //     true
-  //   );
-  //   context.fill();
-  // }
-
-  // /**
-  //  * Returns whether a position is within the bounds of the planet's token.
-  //  * @param {Degree} x the x-offset relative to the center of the Orrery, positive is right.
-  //  * @param {Degree} y the y-offset relative to the center of the Orrery, positive is down.
-  //  */
-  // withinToken(x, y) {
-  //   var angle = radToDeg(vecToAngle(x, y));
-  //   // if (this.withinRing(x, y)) {
-  //   //   console.log(
-  //   //     `debug: ${this.name}
-  //   //     mouse angle:    ${angle}
-  //   //     planet angle:   ${this.wsAngle}
-  //   //     planet arc:     ${this.arc}
-  //   //     mod difference: ${posMod(angle - this.wsAngle, 360)}`
-  //   //   );
-  //   // }
-  //   return (
-  //     this.withinRing(x, y) && posMod(angle - this.wsAngle, 360) < this.arc
-  //   );
-  // }
 }
 /**Celestial Bodies with pie-crust shaped tokens */
 class Planet extends CelestialBody {
@@ -384,19 +334,7 @@ class Star extends CelestialBody {
    */
 
   withinToken(x, y) {
-    return dist(x, y, this.tokenCenterRelative.x, this.tokenCenterRelative.y);
-    // if (this.withinRing(x, y)) {
-    //   console.log(
-    //     `debug: ${this.name}
-    //     mouse angle:    ${angle}
-    //     planet angle:   ${this.wsAngle}
-    //     planet arc:     ${this.arc}
-    //     mod difference: ${posMod(angle - this.wsAngle, 360)}`
-    //   );
-    // }
-    return (
-      this.withinRing(x, y) && posMod(angle - this.wsAngle, 360) < this.arc
-    );
+    return dist(x, y, this.tokenCenterRelative.x, this.tokenCenterRelative.y) < this.tokenRadius;
   }
 }
 
@@ -413,7 +351,6 @@ var mooDist = 50;
 // colors
 const nearBlack = "#1e1e1e";
 const offWhite = "rgb(255,250,250)";
-
 const bgColorLite = "#f0edec";
 const bgColorDark = "#503020";
 
@@ -515,6 +452,7 @@ function render(timeElapsed = 0) {
   ctx.fillRect(0, 0, width, height);
 
   drawOrrery();
+  requestAnimationFrame(render);
 }
 
 /**
