@@ -12,26 +12,44 @@ var centerY = height / 2;
 var state = { clickToggle: false };
 
 /**
+ * A planet on the Orrery, representing both the token and the ring it is on.
  * @property {String} name
  * @property {Number} numDivisions how many positions exist on the ring.
- * @property {Number} divisionOffset The angle (in degrees) that the ws edge of the
+ * @property {Degrees} divisionOffset The angle that the widdershins edge of the
  * first division is offset from the x-axis.
+ * @property {Number} span How many divisions the token takes up.
+ * @property {Degrees} arc the angle between the ws and cw edges.
+ * @property {Degrees} wsAngle the angle of the widdershins edge of the token.
+ * @property {Degrees} cwAngle the angle of the clockwise edge of the token.
+ * @property {Boolean} synced Whether the position matches the actual angles.
  */
-class Ring {
+class CelestialBody {
   name;
+
   outerRadius;
   innerRadius;
-  numDivisions;
-  divisionOffset;
   ringFillStyle;
 
+  numDivisions;
+  divisionOffset;
+  tokenFillStyle;
+  span;
+  position;
+  #truePosition;
+  wsAngle;
+  #trueWsAngle;
+  synced;
+
   /**
-   *
-   * @param {Number} outerRadius
+   * @param {String} name
+   * @param {Number} outerRadius The distance from the center of the orrery to the outside of the ring.
    * @param {Number} innerRadius
    * @param {Number} numDivisions
    * @param {Number} divisionOffset the offset of the first division from the x-axis
    * @param {string | CanvasGradient | CanvasPattern} ringFillStyle
+   * @param {Number} span
+   * @param {Number} position: which division shares a ws edge with the token (0-indexed from the first position on the x-axis)
+   * @param {string | CanvasGradient | CanvasPattern} tokenFillStyle
    */
   constructor(
     name,
@@ -39,7 +57,10 @@ class Ring {
     innerRadius,
     numDivisions,
     divisionOffset,
-    ringFillStyle
+    ringFillStyle,
+    span,
+    position,
+    tokenFillStyle
   ) {
     this.name = name;
     this.outerRadius = outerRadius;
@@ -47,6 +68,11 @@ class Ring {
     this.numDivisions = numDivisions;
     this.divisionOffset = divisionOffset;
     this.ringFillStyle = ringFillStyle;
+    this.span = span;
+    this.position = position;
+    this.tokenFillStyle = tokenFillStyle;
+
+    this.setAngleFromPosition();
   }
 
   /**
@@ -70,66 +96,28 @@ class Ring {
     var radius = Math.sqrt(x ** 2 + y ** 2);
     return radius > this.innerRadius && radius < this.outerRadius;
   }
-}
-
-/**
- * A planet on the Orrery, representing both the token and the ring it is on.
- * @property {Number} span How many divisions the token takes up.
- * @property {Number} arc the angle between the ws and cw edges.
- * @property {Number} wsAngle the angle of the widdershins edge of the token.
- * @property {Number} cwAngle the angle of the clockwise edge of the token.
- * @property {Boolean} synced Whether the position matches the actual angles.
- */
-class Planet extends Ring {
-  tokenFillStyle;
-  span;
-  position;
-  #truePosition;
-  wsAngle;
-  #trueWsAngle;
-  synced;
 
   /**
-   *
-   * @param {String} name
-   * @param {Number} outerRadius
-   * @param {Number} innerRadius
-   * @param {Number} numDivisions
-   * @param {Number} divisionOffset the offset of the first division from the x-axis
-   * @param {string | CanvasGradient | CanvasPattern} ringFillStyle
-   * @param {Number} span
-   * @param {Number} position: which division shares a ws edge with the token (0-indexed from the first position on the x-axis)
-   * @param {string | CanvasGradient | CanvasPattern} tokenFillStyle
+   * Abstract method for drawing tokens
+   * @param {CanvasRenderingContext2D} context
    */
-  constructor(
-    name,
-    outerRadius,
-    innerRadius,
-    numDivisions,
-    divisionOffset,
-    ringFillStyle,
-    span,
-    position,
-    tokenFillStyle
-  ) {
-    super(
-      name,
-      outerRadius,
-      innerRadius,
-      numDivisions,
-      divisionOffset,
-      ringFillStyle
-    );
-    this.span = span;
-    this.position = position;
-    this.tokenFillStyle = tokenFillStyle;
+  drawToken(context) {
+    throw TypeError("Celestial Bodies can't draw tokens on their own!");
+  }
 
-    this.setAngleFromPosition();
+  /**
+   * Abstract method.
+   * Returns whether a position is within the bounds of the body's token.
+   * @param {Degree} x the x-offset relative to the center of the Orrery, positive is right.
+   * @param {Degree} y the y-offset relative to the center of the Orrery, positive is down.
+   */
+  withinToken(x, y) {
+    throw TypeError("Celestial Bodies can't identify tokens on their own!");
   }
 
   advance() {
     this.position += this.span;
-    this.wsAngle += this.arc;
+    this.wsAngle += this.divisionAngle;
     requestAnimationFrame(render);
   }
 
@@ -182,15 +170,68 @@ class Planet extends Ring {
    * @returns {Degree}
    */
   get cwAngle() {
-    return this.wsAngle + this.arc;
+    return this.wsAngle + this.divisionAngle;
   }
   /**
    * @returns {Degree}
    */
-  get arc() {
+  get divisionAngle() {
     return this.span * (360 / this.numDivisions);
   }
 
+  // /**
+  //  * Draws a token onto the Planet's ring.
+  //  * @param {CanvasRenderingContext2D} context
+  //  */
+  // drawToken(context) {
+  //   context.fillStyle = this.tokenFillStyle;
+  //   context.beginPath();
+  //   context.arc(
+  //     centerX,
+  //     centerY,
+  //     this.outerRadius,
+  //     degToRad(this.wsAngle),
+  //     degToRad(this.cwAngle),
+  //     false
+  //   );
+  //   context.lineTo(
+  //     centerX + this.innerRadius * Math.cos(degToRad(this.cwAngle)),
+  //     centerY + this.innerRadius * Math.sin(degToRad(this.cwAngle))
+  //   );
+  //   context.arc(
+  //     centerX,
+  //     centerY,
+  //     this.innerRadius,
+  //     degToRad(this.cwAngle),
+  //     degToRad(this.wsAngle),
+  //     true
+  //   );
+  //   context.fill();
+  // }
+
+  // /**
+  //  * Returns whether a position is within the bounds of the planet's token.
+  //  * @param {Degree} x the x-offset relative to the center of the Orrery, positive is right.
+  //  * @param {Degree} y the y-offset relative to the center of the Orrery, positive is down.
+  //  */
+  // withinToken(x, y) {
+  //   var angle = radToDeg(vecToAngle(x, y));
+  //   // if (this.withinRing(x, y)) {
+  //   //   console.log(
+  //   //     `debug: ${this.name}
+  //   //     mouse angle:    ${angle}
+  //   //     planet angle:   ${this.wsAngle}
+  //   //     planet arc:     ${this.arc}
+  //   //     mod difference: ${posMod(angle - this.wsAngle, 360)}`
+  //   //   );
+  //   // }
+  //   return (
+  //     this.withinRing(x, y) && posMod(angle - this.wsAngle, 360) < this.arc
+  //   );
+  // }
+}
+/**Celestial Bodies with pie-crust shaped tokens */
+class Planet extends CelestialBody {
   /**
    * Draws a token onto the Planet's ring.
    * @param {CanvasRenderingContext2D} context
@@ -238,6 +279,122 @@ class Planet extends Ring {
     //   );
     // }
     return (
+      this.withinRing(x, y) &&
+      posMod(angle - this.wsAngle, 360) < this.divisionAngle
+    );
+  }
+}
+/**
+ * Celestial bodies with circular tokens.
+ */
+class Star extends CelestialBody {
+  /**
+   * @param {String} name
+   * @param {Number} outerRadius The distance from the center of the orrery to the outside of the ring.
+   * @param {Number} innerRadius
+   * @param {Number} numDivisions
+   * @param {Number} divisionOffset the offset of the first division from the x-axis
+   * @param {string | CanvasGradient | CanvasPattern} ringFillStyle
+   * @param {Number} span
+   * @param {Number} position: which division shares a ws edge with the token (0-indexed from the first position on the x-axis)
+   * @param {Number} tokenDistance the distance from the center of the orrery to the center of the token
+   * @param {Number} tokenRadius the token's radius
+   * @param {string | CanvasGradient | CanvasPattern} tokenFillStyle
+   */
+  constructor(
+    name,
+    outerRadius,
+    innerRadius,
+    numDivisions,
+    divisionOffset,
+    ringFillStyle, //TODO: group with radii
+    span,
+    position,
+    tokenDistance,
+    tokenRadius,
+    tokenFillStyle
+  ) {
+    super(
+      name,
+      outerRadius,
+      innerRadius,
+      numDivisions,
+      divisionOffset,
+      ringFillStyle,
+      span,
+      position,
+      tokenFillStyle
+    );
+    this.tokenDistance = tokenDistance;
+    this.tokenRadius = tokenRadius;
+  }
+  /**
+   * The center of the token relative to the canvas origin
+   */
+  get tokenCenterAbsolute() {
+    return {
+      x:
+        centerX +
+        this.tokenDistance *
+          Math.cos(degToRad(this.wsAngle + this.divisionAngle / 2)),
+      y:
+        centerY +
+        this.tokenDistance *
+          Math.sin(degToRad(this.wsAngle + this.divisionAngle / 2)),
+    };
+  }
+  /**
+   * The center of the token relative to the center of the orrery.
+   */
+  get tokenCenterRelative() {
+    return {
+      x:
+        2 * centerX +
+        this.tokenDistance *
+          Math.cos(degToRad(this.wsAngle + this.divisionAngle / 2)),
+      y:
+        2 * centerY +
+        this.tokenDistance *
+          Math.sin(degToRad(this.wsAngle + this.divisionAngle / 2)),
+    };
+  }
+
+  /**
+   * Draws a circular token
+   * @param {CanvasRenderingContext2D} context
+   */
+  drawToken(context) {
+    context.fillStyle = this.tokenFillStyle;
+    context.beginPath();
+    context.arc(
+      this.tokenCenterAbsolute.x,
+      this.tokenCenterAbsolute.y,
+      this.tokenRadius,
+      0,
+      degToRad(360),
+      false
+    );
+    context.fill();
+  }
+
+  /**
+   * Returns whether a position is within the bounds of the planet's token.
+   * @param {Degree} x the x-offset relative to the center of the Orrery, positive is right.
+   * @param {Degree} y the y-offset relative to the center of the Orrery, positive is down.
+   */
+
+  withinToken(x, y) {
+    return dist(x, y, this.tokenCenterRelative.x, this.tokenCenterRelative.y);
+    // if (this.withinRing(x, y)) {
+    //   console.log(
+    //     `debug: ${this.name}
+    //     mouse angle:    ${angle}
+    //     planet angle:   ${this.wsAngle}
+    //     planet arc:     ${this.arc}
+    //     mod difference: ${posMod(angle - this.wsAngle, 360)}`
+    //   );
+    // }
+    return (
       this.withinRing(x, y) && posMod(angle - this.wsAngle, 360) < this.arc
     );
   }
@@ -267,13 +424,27 @@ const marRingColor = "#dda1a1";
 const venRingColor = "#efefd7";
 const merRingColor = "#d8c7e7";
 
+const sunTokenColor = "#ffab40";
 const satTokenColor = "#434343";
 const jupTokenColor = "#e69137";
 const marTokenColor = "#cc0001";
 const venTokenColor = "#69a84f";
 const merTokenColor = "#8d7cc2";
 
-var Mon = new Ring("Months", monthDist, satDist, 12, 0, monRingColor);
+var Sun = new Star(
+  "Sun",
+  monthDist,
+  satDist,
+  12,
+  0,
+  monRingColor,
+  1,
+  7,
+  265,
+  20,
+  sunTokenColor
+);
+// var Mon = new Ring("Months", monthDist, satDist, 12, 0, monRingColor);
 var Sat = new Planet(
   "Saturn",
   satDist,
@@ -358,7 +529,7 @@ function drawOrrery() {
   ctx.stroke();
 
   //Rings
-  Mon.drawRing(ctx);
+  Sun.drawRing(ctx);
   drawMonthText();
 
   Sat.drawRing(ctx);
@@ -388,6 +559,7 @@ function drawOrrery() {
   ctx.setLineDash([]);
 
   //Tokens
+  Sun.drawToken(ctx);
   Sat.drawToken(ctx);
   Jup.drawToken(ctx);
   Mar.drawToken(ctx);
@@ -520,8 +692,7 @@ canvas.addEventListener(
     //   `(${mouseX}, ${mouseY})\nangle: ${radToDeg(vecToAngle(mouseX, mouseY))}`
     // );
     // state.clickToggle = state.clickToggle == false;
-    for (const planet of [Sat, Jup, Mar, Ven, Mer]) {
-
+    for (const planet of [Sun, Sat, Jup, Mar, Ven, Mer]) {
       console.debug(planet.name, planet.position, planet.wsAngle);
       planet.advance();
       console.debug(planet.name, planet.position, planet.wsAngle);
