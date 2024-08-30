@@ -1,3 +1,9 @@
+/**
+ * @fileoverview javascript code to draw and animate the Orrery from Seven Part Pact (a playtested game by Jay Dragon)
+ * @copyright To avoid any conflict with the copyright of Possum Creek Games, this work is not available to license.
+ * @TheHeidal
+ */
+
 // Canvas declarations
 const canvas = document.querySelector(".myCanvas");
 var width = (height = canvas.width = 700),
@@ -6,44 +12,47 @@ var width = (height = canvas.width = 700),
 /** @type {CanvasRenderingContext2D} */
 const ctx = canvas.getContext("2d");
 
-var state = { clickToggle: false };
+var state = { redrawOrrery: false, idle: true, darkMode: true };
+var secondsPerMonth = 1000000;
 
 /**
  * A planet on the Orrery, representing both the token and the ring it is on.
  * @property {String} name
  * @property {Number} numDivisions how many positions exist on the ring.
+ * @property {Degrees} divisionArcLength the angle between the ws and cw edges.
  * @property {Degrees} divisionOffset The angle that the widdershins edge of the
  * first division is offset from the x-axis.
- * @property {Number} span How many divisions the token takes up.
- * @property {Degrees} arc the angle between the ws and cw edges.
+ * @property {Number} divisionSpan How many divisions the token takes up.
+ * @property {Degrees} tokenArcLength the angle between the ws and cw edges.
  * @property {Degrees} wsAngle the angle of the widdershins edge of the token.
  * @property {Degrees} cwAngle the angle of the clockwise edge of the token.
- * @property {Boolean} synced Whether the position matches the actual angles.
  */
 class CelestialBody {
   name;
+  numDivisions;
+  divisionOffset;
+
+  wsAngle;
+  divisionSpan;
 
   outerRadius;
   innerRadius;
   ringFillStyle;
 
   tokenFillStyle;
+  tokenStrokeStyle;
 
-  numDivisions;
-  divisionOffset;
-  divisionSpan;
-  position;
-  wsAngle;
+  destinationWsAngle;
 
   /**
    * @param {String} name
    * @param {Number} outerRadius The distance from the center of the orrery to the outside of the ring.
-   * @param {Number} innerRadius
+   * @param {Number} innerRadius The distance from the center of the orrery to the inside of the ring.
    * @param {Number} numDivisions
    * @param {Number} divisionOffset the offset of the first division from the x-axis
    * @param {string | CanvasGradient | CanvasPattern} ringFillStyle
-   * @param {Number} span
-   * @param {Number} position: which division shares a ws edge with the token (0-indexed from the first position on the x-axis)
+   * @param {Number} divisionsTokenSpans
+   * @param {Number} tokenPosition: which division shares a ws edge with the token (0-indexed from the first position on the x-axis)
    * @param {string | CanvasGradient | CanvasPattern} tokenFillStyle
    */
   constructor(
@@ -53,21 +62,49 @@ class CelestialBody {
     numDivisions,
     divisionOffset,
     ringFillStyle,
-    span,
-    position,
-    tokenFillStyle
+    divisionsTokenSpans,
+    tokenPosition,
+    tokenFillStyle,
+    tokenStrokeStyle
   ) {
     this.name = name;
+
     this.outerRadius = outerRadius;
     this.innerRadius = innerRadius;
+
     this.ringFillStyle = ringFillStyle;
+
     this.tokenFillStyle = tokenFillStyle;
+    this.tokenStrokeStyle = tokenStrokeStyle;
+
     this.numDivisions = numDivisions;
     this.divisionOffset = divisionOffset;
-    this.divisionSpan = span;
-    this.wsAngle = this.divisionArcLength * position + this.divisionOffset;
+    this.divisionSpan = divisionsTokenSpans;
+    this.wsAngle = this.divisionArcLength * tokenPosition + this.divisionOffset;
+    this.destinationWsAngle = this.wsAngle;
   }
 
+  /**
+   * Moves the destination angle of the body clockwise by its arc length
+   */
+  passMonth() {
+    this.destinationWsAngle += this.tokenArcLength;
+  }
+
+  move(timestamp) {
+    if (state.idle) {
+      this.wsAngle += this.speed * timestamp;
+      state.redrawOrrery = true;
+    } else {
+      if (this.destinationWsAngle > this.wsAngle) {
+        this.wsAngle = Math.min(
+          this.wsAngle + this.speed * timestamp,
+          this.destinationWsAngle
+        );
+        state.redrawOrrery = true;
+      }
+    }
+  }
   /**
    * Draws the ring onto the given context. Does not do subdivisions or text!
    * @param {CanvasRenderingContext2D} context
@@ -91,27 +128,22 @@ class CelestialBody {
   }
 
   /**
-   * Abstract method for drawing tokens
+   * Abstract method to draw a token on context
    * @param {CanvasRenderingContext2D} context
    */
   drawToken(context) {
     throw TypeError("Celestial Bodies can't draw tokens on their own!");
   }
-
   /**
-   * Abstract method.
-   * Returns whether a position is within the bounds of the body's token.
-   * @param {Degree} x the x-offset relative to the center of the Orrery, positive is right.
-   * @param {Degree} y the y-offset relative to the center of the Orrery, positive is down.
+   * Abstract method to identify if a position is within the token.
    */
   withinToken(x, y) {
     throw TypeError("Celestial Bodies can't identify tokens on their own!");
   }
 
-  passMonth() {
-    this.wsAngle += this.tokenArcLength;
+  get speed() {
+    return this.tokenArcLength / secondsPerMonth;
   }
-
 
   /**
    * @returns {Degree}
@@ -205,6 +237,7 @@ class Star extends CelestialBody {
     ringFillStyle, //TODO: group with radii?
     span,
     position,
+
     tokenDistance,
     tokenRadius,
     tokenFillStyle
@@ -285,19 +318,20 @@ class Star extends CelestialBody {
     );
   }
 }
-
-var sunDist = 265;
-var monthDist = 250;
-var textDist = 215;
-var satDist = 200;
-var jupDist = 170;
-var marDist = 140;
-var venDist = 110;
-var merDist = 80;
-var mooDist = 50;
+var distances = {
+  sun: 265,
+  mon: 250,
+  txt: 215,
+  sat: 200,
+  jup: 170,
+  mar: 140,
+  ven: 110,
+  mer: 80,
+  moo: 50,
+};
 
 // colors
-const nearBlack = "#1e1e1e";
+const nearBlack = "#3e2e2e";
 const offWhite = "rgb(255,250,250)";
 const bgColorLite = "#f0edec";
 const bgColorDark = "#503020";
@@ -309,7 +343,7 @@ const marRingColor = "#dda1a1";
 const venRingColor = "#efefd7";
 const merRingColor = "#d8c7e7";
 
-const sunTokenColor = "#ffab40";
+const sunTokenFillColor = "#ffab40";
 const satTokenColor = "#434343";
 const jupTokenColor = "#e69137";
 const marTokenColor = "#cc0001";
@@ -318,22 +352,21 @@ const merTokenColor = "#8d7cc2";
 
 var Sun = new Star(
   "Sun",
-  monthDist,
-  satDist,
+  distances.mon,
+  distances.sat,
   12,
   0,
   monRingColor,
   1,
   7,
-  265,
-  20,
-  sunTokenColor
+  distances.sun,
+  30,
+  sunTokenFillColor,
 );
-// var Mon = new Ring("Months", monthDist, satDist, 12, 0, monRingColor);
 var Sat = new Planet(
   "Saturn",
-  satDist,
-  jupDist,
+  distances.sat,
+  distances.jup,
   36,
   -5,
   satRingColor,
@@ -343,8 +376,8 @@ var Sat = new Planet(
 );
 var Jup = new Planet(
   "Jupiter",
-  jupDist,
-  marDist,
+  distances.jup,
+  distances.mar,
   48,
   0,
   jupRingColor,
@@ -354,8 +387,8 @@ var Jup = new Planet(
 );
 var Mar = new Planet(
   "Mars",
-  marDist,
-  venDist,
+  distances.mar,
+  distances.ven,
   24,
   0,
   marRingColor,
@@ -365,8 +398,8 @@ var Mar = new Planet(
 );
 var Ven = new Planet(
   "Venus",
-  venDist,
-  merDist,
+  distances.ven,
+  distances.mer,
   24,
   0,
   venRingColor,
@@ -376,8 +409,8 @@ var Ven = new Planet(
 );
 var Mer = new Planet(
   "Mercury",
-  merDist,
-  mooDist,
+  distances.mer,
+  distances.moo,
   24,
   0,
   merRingColor,
@@ -385,6 +418,8 @@ var Mer = new Planet(
   12,
   merTokenColor
 );
+
+const bodies = [Sun, Sat, Jup, Mar, Ven, Mer];
 
 /**
  * Draws a new frame for the Orrery's canvas.
@@ -395,11 +430,11 @@ var Mer = new Planet(
  */
 function render(timeElapsed = 0) {
   // Background
-
-  ctx.fillStyle = state.clickToggle ? bgColorDark : bgColorLite;
-  ctx.fillRect(0, 0, width, height);
-
-  drawOrrery();
+  state.redrawOrrery = false;
+  for (body of bodies) {
+    body.move(timeElapsed);
+  }
+  if (state.redrawOrrery) drawOrrery();
   requestAnimationFrame(render);
 }
 
@@ -407,11 +442,13 @@ function render(timeElapsed = 0) {
  * Draws the Orrery ring by ring
  */
 function drawOrrery() {
+  ctx.fillStyle = state.darkMode ? bgColorDark : bgColorLite;
+  ctx.fillRect(0, 0, width, height);
   //Sun ring
   ctx.lineWidth = 3;
   ctx.strokeStyle = "red";
   ctx.beginPath();
-  ctx.arc(center.x, center.y, sunDist, 0, degToRad(360));
+  ctx.arc(center.x, center.y, distances.sun, 0, degToRad(360));
   ctx.stroke();
 
   //Rings
@@ -430,18 +467,27 @@ function drawOrrery() {
   //Divisions
   ctx.lineWidth = 2;
   ctx.strokeStyle = nearBlack;
-  subdivide(center.x, center.y, monthDist, satDist, 12, 0);
+  subdivide(center.x, center.y, distances.mon, distances.sat, 12, 0);
+
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = offWhite;
+  subdivide(
+    center.x,
+    center.y,
+    (distances.sat - distances.jup) * 0.7 + distances.jup,
+    (distances.sat - distances.jup) * 0.3 + distances.jup,
+    36,
+    5
+  );
+  // subdivide(center.x, center.y, distances.sat, distances.jup, 36, 5);
 
   ctx.lineWidth = 1;
-  ctx.strokeStyle = offWhite;
-  subdivide(center.x, center.y, satDist, jupDist, 36, 5);
-
   ctx.strokeStyle = nearBlack;
-  subdivide(center.x, center.y, jupDist, mooDist, 12, 0);
+  subdivide(center.x, center.y, distances.jup, distances.moo, 12, 0);
 
   ctx.setLineDash([5, 3]);
-  subdivide(center.x, center.y, jupDist, mooDist, 12, 15);
-  subdivide(center.x, center.y, jupDist, marDist, 24, 7.5);
+  subdivide(center.x, center.y, distances.jup, distances.moo, 12, 15);
+  subdivide(center.x, center.y, distances.jup, distances.mar, 24, 7.5);
   ctx.setLineDash([]);
 
   //Tokens
@@ -475,7 +521,7 @@ function drawOrrery() {
       "Aquarius",
       "Pisces",
     ]) {
-      ctx.fillText(sign, 0, -textDist);
+      ctx.fillText(sign, 0, -distances.txt);
       ctx.rotate(degToRad(30));
     }
 
@@ -579,13 +625,11 @@ canvas.addEventListener(
     // );
     // state.clickToggle = state.clickToggle == false;
     for (const planet of [Sun, Sat, Jup, Mar, Ven, Mer]) {
-      console.debug(planet.name, planet.wsAngle);
       planet.passMonth();
-      console.debug(planet.name, planet.wsAngle);
     }
     requestAnimationFrame(render);
   },
   false
 );
-
+drawOrrery();
 render();
