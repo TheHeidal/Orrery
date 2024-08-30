@@ -2,12 +2,9 @@
 const canvas = document.querySelector(".myCanvas");
 var width = (height = canvas.width = 700),
   height = (canvas.height = 700),
-  canvasLeft = canvas.offsetLeft + canvas.clientLeft,
-  canvasTop = canvas.offsetTop + canvas.clientTop;
+  center = { x: width / 2, y: height / 2 };
 /** @type {CanvasRenderingContext2D} */
 const ctx = canvas.getContext("2d");
-var centerX = width / 2;
-var centerY = height / 2;
 
 var state = { clickToggle: false };
 
@@ -34,12 +31,9 @@ class CelestialBody {
 
   numDivisions;
   divisionOffset;
-  span;
+  divisionSpan;
   position;
-  #truePosition;
   wsAngle;
-  #trueWsAngle;
-  synced;
 
   /**
    * @param {String} name
@@ -66,14 +60,12 @@ class CelestialBody {
     this.name = name;
     this.outerRadius = outerRadius;
     this.innerRadius = innerRadius;
+    this.ringFillStyle = ringFillStyle;
+    this.tokenFillStyle = tokenFillStyle;
     this.numDivisions = numDivisions;
     this.divisionOffset = divisionOffset;
-    this.ringFillStyle = ringFillStyle;
-    this.span = span;
-    this.position = position;
-    this.tokenFillStyle = tokenFillStyle;
-
-    this.setAngleFromPosition();
+    this.divisionSpan = span;
+    this.wsAngle = this.divisionArcLength * position + this.divisionOffset;
   }
 
   /**
@@ -83,8 +75,8 @@ class CelestialBody {
   drawRing(context) {
     context.fillStyle = this.ringFillStyle;
     context.beginPath();
-    context.arc(centerX, centerY, this.outerRadius, 0, degToRad(360), false);
-    context.arc(centerX, centerY, this.innerRadius, 0, degToRad(360), true);
+    context.arc(center.x, center.y, this.outerRadius, 0, degToRad(360), false);
+    context.arc(center.x, center.y, this.innerRadius, 0, degToRad(360), true);
     context.fill();
   }
 
@@ -116,68 +108,30 @@ class CelestialBody {
     throw TypeError("Celestial Bodies can't identify tokens on their own!");
   }
 
-  advance() {
-    this.position += this.span;
-    this.wsAngle += this.divisionAngle;
-    requestAnimationFrame(render);
+  passMonth() {
+    this.wsAngle += this.tokenArcLength;
   }
 
-  /**
-   * Sets the angle of the token from the current position.
-   */
-  setAngleFromPosition() {
-    this.wsAngle =
-      (360 / this.numDivisions) * this.position - this.divisionOffset;
-    this.synced = true;
-  }
-
-  setPositionFromAngle() {
-    //TODO make it so the token will snap to a position. Not sure how to determine which one.
-    console.warn(`${this.name} tried to set its position!`);
-  }
-
-  /**
-   * @param {Number} n
-   */
-  set position(n) {
-    //setter is necessary so we always know if we desync
-    this.#truePosition = n;
-    this.synced = false;
-  }
-
-  /**
-   * @returns {Degree}
-   */
-  get position() {
-    return this.#truePosition;
-  }
-  /**
-   * @param {Degrees} n
-   */
-  set wsAngle(n) {
-    //setter is necessary so we always know if we desync
-    this.#trueWsAngle = n;
-    this.synced = false;
-  }
-
-  /**
-   * @returns {Degree}
-   */
-  get wsAngle() {
-    return this.#trueWsAngle;
-  }
 
   /**
    * @returns {Degree}
    */
   get cwAngle() {
-    return this.wsAngle + this.divisionAngle;
+    return this.wsAngle + this.tokenArcLength;
   }
   /**
-   * @returns {Degree}
+   * The angle between the token's widdershins and clockwise edges
+   * @returns {Degrees}
    */
-  get divisionAngle() {
-    return this.span * (360 / this.numDivisions);
+  get tokenArcLength() {
+    return this.divisionSpan * this.divisionArcLength;
+  }
+  /**
+   * The angle of one division of the ring
+   * @returns {Degrees}
+   */
+  get divisionArcLength() {
+    return 360 / this.numDivisions;
   }
 }
 /**Celestial Bodies with pie-crust shaped tokens */
@@ -190,20 +144,20 @@ class Planet extends CelestialBody {
     context.fillStyle = this.tokenFillStyle;
     context.beginPath();
     context.arc(
-      centerX,
-      centerY,
+      center.x,
+      center.y,
       this.outerRadius,
       degToRad(this.wsAngle),
       degToRad(this.cwAngle),
       false
     );
     context.lineTo(
-      centerX + this.innerRadius * Math.cos(degToRad(this.cwAngle)),
-      centerY + this.innerRadius * Math.sin(degToRad(this.cwAngle))
+      center.x + this.innerRadius * Math.cos(degToRad(this.cwAngle)),
+      center.y + this.innerRadius * Math.sin(degToRad(this.cwAngle))
     );
     context.arc(
-      centerX,
-      centerY,
+      center.x,
+      center.y,
       this.innerRadius,
       degToRad(this.cwAngle),
       degToRad(this.wsAngle),
@@ -219,18 +173,9 @@ class Planet extends CelestialBody {
    */
   withinToken(x, y) {
     var angle = radToDeg(vecToAngle(x, y));
-    // if (this.withinRing(x, y)) {
-    //   console.log(
-    //     `debug: ${this.name}
-    //     mouse angle:    ${angle}
-    //     planet angle:   ${this.wsAngle}
-    //     planet arc:     ${this.arc}
-    //     mod difference: ${posMod(angle - this.wsAngle, 360)}`
-    //   );
-    // }
     return (
       this.withinRing(x, y) &&
-      posMod(angle - this.wsAngle, 360) < this.divisionAngle
+      posMod(angle - this.wsAngle, 360) < this.tokenArcLength
     );
   }
 }
@@ -257,7 +202,7 @@ class Star extends CelestialBody {
     innerRadius,
     numDivisions,
     divisionOffset,
-    ringFillStyle, //TODO: group with radii
+    ringFillStyle, //TODO: group with radii?
     span,
     position,
     tokenDistance,
@@ -284,13 +229,13 @@ class Star extends CelestialBody {
   get tokenCenterAbsolute() {
     return {
       x:
-        centerX +
+        center.x +
         this.tokenDistance *
-          Math.cos(degToRad(this.wsAngle + this.divisionAngle / 2)),
+          Math.cos(degToRad(this.wsAngle + this.divisionArcLength / 2)),
       y:
-        centerY +
+        center.y +
         this.tokenDistance *
-          Math.sin(degToRad(this.wsAngle + this.divisionAngle / 2)),
+          Math.sin(degToRad(this.wsAngle + this.divisionArcLength / 2)),
     };
   }
   /**
@@ -299,13 +244,13 @@ class Star extends CelestialBody {
   get tokenCenterRelative() {
     return {
       x:
-        2 * centerX +
+        2 * center.x +
         this.tokenDistance *
-          Math.cos(degToRad(this.wsAngle + this.divisionAngle / 2)),
+          Math.cos(degToRad(this.wsAngle + this.tokenArcLength / 2)),
       y:
-        2 * centerY +
+        2 * center.y +
         this.tokenDistance *
-          Math.sin(degToRad(this.wsAngle + this.divisionAngle / 2)),
+          Math.sin(degToRad(this.wsAngle + this.tokenArcLength / 2)),
     };
   }
 
@@ -334,7 +279,10 @@ class Star extends CelestialBody {
    */
 
   withinToken(x, y) {
-    return dist(x, y, this.tokenCenterRelative.x, this.tokenCenterRelative.y) < this.tokenRadius;
+    return (
+      dist(x, y, this.tokenCenterRelative.x, this.tokenCenterRelative.y) <
+      this.tokenRadius
+    );
   }
 }
 
@@ -463,7 +411,7 @@ function drawOrrery() {
   ctx.lineWidth = 3;
   ctx.strokeStyle = "red";
   ctx.beginPath();
-  ctx.arc(centerX, centerY, sunDist, 0, degToRad(360));
+  ctx.arc(center.x, center.y, sunDist, 0, degToRad(360));
   ctx.stroke();
 
   //Rings
@@ -482,18 +430,18 @@ function drawOrrery() {
   //Divisions
   ctx.lineWidth = 2;
   ctx.strokeStyle = nearBlack;
-  subdivide(centerX, centerY, monthDist, satDist, 12, 0);
+  subdivide(center.x, center.y, monthDist, satDist, 12, 0);
 
   ctx.lineWidth = 1;
   ctx.strokeStyle = offWhite;
-  subdivide(centerX, centerY, satDist, jupDist, 36, 5);
+  subdivide(center.x, center.y, satDist, jupDist, 36, 5);
 
   ctx.strokeStyle = nearBlack;
-  subdivide(centerX, centerY, jupDist, mooDist, 12, 0);
+  subdivide(center.x, center.y, jupDist, mooDist, 12, 0);
 
   ctx.setLineDash([5, 3]);
-  subdivide(centerX, centerY, jupDist, mooDist, 12, 15);
-  subdivide(centerX, centerY, jupDist, marDist, 24, 7.5);
+  subdivide(center.x, center.y, jupDist, mooDist, 12, 15);
+  subdivide(center.x, center.y, jupDist, marDist, 24, 7.5);
   ctx.setLineDash([]);
 
   //Tokens
@@ -506,7 +454,7 @@ function drawOrrery() {
 
   function drawMonthText() {
     ctx.save();
-    ctx.translate(centerX, centerY);
+    ctx.translate(center.x, center.y);
     ctx.rotate(degToRad(15));
 
     ctx.fillStyle = nearBlack;
@@ -631,9 +579,9 @@ canvas.addEventListener(
     // );
     // state.clickToggle = state.clickToggle == false;
     for (const planet of [Sun, Sat, Jup, Mar, Ven, Mer]) {
-      console.debug(planet.name, planet.position, planet.wsAngle);
-      planet.advance();
-      console.debug(planet.name, planet.position, planet.wsAngle);
+      console.debug(planet.name, planet.wsAngle);
+      planet.passMonth();
+      console.debug(planet.name, planet.wsAngle);
     }
     requestAnimationFrame(render);
   },
