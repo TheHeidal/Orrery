@@ -1,19 +1,19 @@
 /**
- * @fileoverview javascript code to draw and animate the Orrery from Seven Part Pact (a playtested game by Jay Dragon)
+ * @fileoverview javascript code to draw and animate the Orrery from Seven Part Pact (a game by Jay Dragon)
  * @copyright To avoid any conflict with the copyright of Possum Creek Games, this work is not available to license.
  * @TheHeidal
  */
 
 // Canvas declarations
 const canvas = document.querySelector(".myCanvas");
-var width = (height = canvas.width = 700),
-  height = (canvas.height = 700),
+canvas.height = canvas.width = 700;
+var width = (height = canvas.width),
   center = { x: width / 2, y: height / 2 };
 /** @type {CanvasRenderingContext2D} */
 const ctx = canvas.getContext("2d");
 
-var state = { redrawOrrery: false, idle: true, darkMode: true };
-var secondsPerMonth = 1000000;
+var state = { redrawOrrery: false, idle: false, darkMode: true };
+var speedVar = 1000000; //TODO: understand the units for this
 
 /**
  * A planet on the Orrery, representing both the token and the ring it is on.
@@ -33,7 +33,7 @@ class CelestialBody {
   divisionOffset;
 
   wsAngle;
-  divisionSpan;
+  divisionsTokenSpans;
 
   outerRadius;
   innerRadius;
@@ -79,7 +79,7 @@ class CelestialBody {
 
     this.numDivisions = numDivisions;
     this.divisionOffset = divisionOffset;
-    this.divisionSpan = divisionsTokenSpans;
+    this.divisionsTokenSpans = divisionsTokenSpans;
     this.wsAngle = this.divisionArcLength * tokenPosition + this.divisionOffset;
     this.destinationWsAngle = this.wsAngle;
   }
@@ -93,9 +93,11 @@ class CelestialBody {
 
   move(timestamp) {
     if (state.idle) {
+      //TODO: tokens accelerate for some reason?
       this.wsAngle += this.speed * timestamp;
       state.redrawOrrery = true;
     } else {
+      //TODO: tokens also accelerate
       if (this.destinationWsAngle > this.wsAngle) {
         this.wsAngle = Math.min(
           this.wsAngle + this.speed * timestamp,
@@ -142,7 +144,7 @@ class CelestialBody {
   }
 
   get speed() {
-    return this.tokenArcLength / secondsPerMonth;
+    return this.tokenArcLength / speedVar;
   }
 
   /**
@@ -156,7 +158,7 @@ class CelestialBody {
    * @returns {Degrees}
    */
   get tokenArcLength() {
-    return this.divisionSpan * this.divisionArcLength;
+    return this.divisionsTokenSpans * this.divisionArcLength;
   }
   /**
    * The angle of one division of the ring
@@ -217,8 +219,8 @@ class Planet extends CelestialBody {
 class Star extends CelestialBody {
   /**
    * @param {String} name
-   * @param {Number} outerRadius The distance from the center of the orrery to the outside of the ring.
-   * @param {Number} innerRadius
+   * @param {Number} outerRadius Distance from the center of the orrery to the outside of the ring.
+   * @param {Number} innerRadius Distance from the center of the orrery to the inside of the ring.
    * @param {Number} numDivisions
    * @param {Number} divisionOffset the offset of the first division from the x-axis
    * @param {string | CanvasGradient | CanvasPattern} ringFillStyle
@@ -336,19 +338,19 @@ const offWhite = "rgb(255,250,250)";
 const bgColorLite = "#f0edec";
 const bgColorDark = "#503020";
 
-const monRingColor = offWhite;
-const satRingColor = nearBlack;
-const jupRingColor = "#dcb894";
-const marRingColor = "#dda1a1";
-const venRingColor = "#efefd7";
-const merRingColor = "#d8c7e7";
+const monRingFillColor = offWhite;
+const satRingFillColor = nearBlack;
+const jupRingFillColor = "#dcb894";
+const marRingFillColor = "#dda1a1";
+const venRingFillColor = "#efefd7";
+const merRingFillColor = "#d8c7e7";
 
 const sunTokenFillColor = "#ffab40";
-const satTokenColor = "#434343";
-const jupTokenColor = "#e69137";
-const marTokenColor = "#cc0001";
-const venTokenColor = "#69a84f";
-const merTokenColor = "#8d7cc2";
+const satTokenFillColor = "#434343";
+const jupTokenFillColor = "#e69137";
+const marTokenFillColor = "#cc0001";
+const venTokenFillColor = "#69a84f";
+const merTokenFillColor = "#8d7cc2";
 
 var Sun = new Star(
   "Sun",
@@ -356,12 +358,12 @@ var Sun = new Star(
   distances.sat,
   12,
   0,
-  monRingColor,
+  monRingFillColor,
   1,
   7,
   distances.sun,
   30,
-  sunTokenFillColor,
+  sunTokenFillColor
 );
 var Sat = new Planet(
   "Saturn",
@@ -369,10 +371,10 @@ var Sat = new Planet(
   distances.jup,
   36,
   -5,
-  satRingColor,
+  satRingFillColor,
   1,
   3,
-  satTokenColor
+  satTokenFillColor
 );
 var Jup = new Planet(
   "Jupiter",
@@ -380,10 +382,10 @@ var Jup = new Planet(
   distances.mar,
   48,
   0,
-  jupRingColor,
+  jupRingFillColor,
   3,
   40,
-  jupTokenColor
+  jupTokenFillColor
 );
 var Mar = new Planet(
   "Mars",
@@ -391,10 +393,10 @@ var Mar = new Planet(
   distances.ven,
   24,
   0,
-  marRingColor,
+  marRingFillColor,
   3,
   22,
-  marTokenColor
+  marTokenFillColor
 );
 var Ven = new Planet(
   "Venus",
@@ -402,10 +404,10 @@ var Ven = new Planet(
   distances.mer,
   24,
   0,
-  venRingColor,
+  venRingFillColor,
   5,
   14,
-  venTokenColor
+  venTokenFillColor
 );
 var Mer = new Planet(
   "Mercury",
@@ -413,10 +415,10 @@ var Mer = new Planet(
   distances.moo,
   24,
   0,
-  merRingColor,
+  merRingFillColor,
   7,
   12,
-  merTokenColor
+  merTokenFillColor
 );
 
 const bodies = [Sun, Sat, Jup, Mar, Ven, Mer];
