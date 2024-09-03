@@ -2,6 +2,7 @@ export type TextStyle = {
   fillStyle: string | CanvasGradient | CanvasPattern;
   textAlign: CanvasTextAlign;
   font: string;
+  yOffset: number;
 };
 
 export type Style =
