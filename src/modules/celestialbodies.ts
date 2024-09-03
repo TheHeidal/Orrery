@@ -62,11 +62,10 @@ export abstract class CelestialBody {
     this.destinationWsPosition += this.tokenAngle;
   }
 
-  moveToken(timestamp: DOMHighResTimeStamp): void {
-    //TODO: I have misunderstood timestamp. Timestamp records how long the window has been open.
+  moveToken(elapsed: DOMHighResTimeStamp): void {
     if (this.destinationWsPosition > this.wsPosition) {
       this.wsPosition = Math.min(
-        this.wsPosition + this.speed * timestamp,
+        this.wsPosition + this.speed * elapsed,
         this.destinationWsPosition
       );
     }
@@ -123,7 +122,7 @@ export abstract class CelestialBody {
   }
 
   get speed(): number {
-    return this.tokenAngle / 1000000;
+    return this.tokenAngle / 1000;
   }
 
   /**
@@ -257,9 +256,11 @@ export class Star extends CelestialBody {
    * The center of the token relative to the center of the orrery
    */
   get tokenCenterpoint() {
-    const x = this.tokenDistance *
+    const x =
+      this.tokenDistance *
       Math.cos(degToRad(this.wsPosition + this.divisionAngle / 2));
-    const y = this.tokenDistance *
+    const y =
+      this.tokenDistance *
       Math.sin(degToRad(this.wsPosition + this.divisionAngle / 2));
     return {
       x: x,

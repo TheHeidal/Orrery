@@ -6,17 +6,7 @@
 
 import { degToRad } from "./modules/misc.js";
 import type { CelestialBody } from "./modules/celestialbodies.js";
-import { Star, Planet} from "./modules/celestialbodies.js";
-
-// Canvas declarations
-const canvas = document.querySelector(".myCanvas") as HTMLCanvasElement;
-canvas.height = canvas.width = 700;
-var height: number,
-  width = (height = canvas.width),
-  center = { x: width / 2, y: height / 2 };
-const ctx = canvas.getContext("2d");
-
-var state = { redrawOrrery: false, idle: false, darkMode: true };
+import { Star, Planet } from "./modules/celestialbodies.js";
 
 export var distances = {
   sun: 265,
@@ -135,48 +125,31 @@ var Mer = new Planet(
 // const bodies = [Sun, Sat, Jup, Mar, Ven, Mer];
 const bodies: CelestialBody[] = [Sun, Sat, Jup, Mar, Ven, Mer];
 
-/**
- * Draws a new frame for the Orrery's canvas.
- * Intended to be called by requestAnimationFrame.
- *
- * @param {DOMHighResTimeStamp} timeElapsed the end time of the previous
- * frame's rendering
- */
-function render(timeElapsed: DOMHighResTimeStamp) {
-  // Background
-  state.redrawOrrery = true;
-  for (var body of bodies) {
-    body.moveToken(timeElapsed);
-  }
-  if (state.redrawOrrery) drawOrrery();
-  requestAnimationFrame(render);
+function drawBG() {
+  ctx.fillStyle = state.darkMode ? colors.bgColorDark : colors.bgColorLite;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
 
 /**
  * Draws the Orrery ring by ring
  */
 function drawOrrery() {
-  ctx.fillStyle = state.darkMode ? colors.bgColorDark : colors.bgColorLite;
-  ctx.fillRect(0, 0, width, height);
+  ctx.save();
+  ctx.translate(
+    { x: canvas.width / 2, y: canvas.height / 2 }.x,
+    { x: canvas.width / 2, y: canvas.height / 2 }.y
+  );
 
   //Sun ring
   ctx.lineWidth = 3;
   ctx.strokeStyle = "red";
   ctx.beginPath();
-  ctx.arc(center.x, center.y, distances.sun, 0, degToRad(360));
+  ctx.arc(0, 0, distances.sun, 0, degToRad(360));
   ctx.stroke();
 
   //Rings
-  ctx.save();
-  ctx.translate(center.x, center.y);
-  {
-    Sun.drawRing(ctx);
-    Sat.drawRing(ctx);
-    Sat.drawRing(ctx);
-    Jup.drawRing(ctx);
-    Mar.drawRing(ctx);
-    Ven.drawRing(ctx);
-    Mer.drawRing(ctx);
+  for (var body of bodies) {
+    body.drawRing(ctx);
   }
 
   //Divisions
@@ -207,76 +180,71 @@ function drawOrrery() {
     body.drawToken(ctx);
   }
   ctx.restore();
-}
 
-/**
- * Draws equally spaced lines about the center from outerRadius to innerRadius
- * @param {number} outerRadius
- * @param {number} innerRadius
- * @param {number} divisions number of lines
- * @param {number} offsetAngle degrees offset from the x-axis
- */
-function divisionPath(
-  outerRadius: number,
-  innerRadius: number,
-  divisions: number,
-  offsetAngle: number
-): Path2D {
-  const path = new Path2D();
-
-  for (let i = 0; i < divisions; i++) {
-    const angle = degToRad((360 / divisions) * i + offsetAngle);
-    path.moveTo(
-      center.x + outerRadius * Math.cos(angle),
-      center.y + outerRadius * Math.sin(angle)
-    );
-    path.lineTo(
-      center.x + innerRadius * Math.cos(angle),
-      center.y + innerRadius * Math.sin(angle)
-    );
-  }
-  return path;
-}
-
-/**
- * Draws equally spaced lines about the center from outerRadius to innerRadius
- * @param {Number} outerRadius
- * @param {Number} innerRadius
- * @param {Number} divisions number of lines
- * @param {Number} offsetAngle offset from the x-axis
- */
-function subdivide(
-  outerRadius: number,
-  innerRadius: number,
-  divisions: number,
-  offsetAngle: number = 0
-) {
-  for (let i = 0; i < divisions; i++) {
-    ctx.beginPath();
-    const angle = degToRad((360 / divisions) * i + offsetAngle);
-    ctx.moveTo(outerRadius * Math.cos(angle), outerRadius * Math.sin(angle));
-    ctx.lineTo(innerRadius * Math.cos(angle), innerRadius * Math.sin(angle));
-    ctx.stroke();
+  /**
+   * Draws equally spaced lines about the origin from outerRadius to innerRadius
+   * @param {Number} outerRadius
+   * @param {Number} innerRadius
+   * @param {Number} divisions number of divisions
+   * @param {Number} offsetAngle offset from the x-axis in degrees
+   */
+  function subdivide(
+    outerRadius: number,
+    innerRadius: number,
+    divisions: number,
+    offsetAngle: number = 0
+  ) {
+    for (let i = 0; i < divisions; i++) {
+      ctx.beginPath();
+      const angle = degToRad((360 / divisions) * i + offsetAngle);
+      ctx.moveTo(outerRadius * Math.cos(angle), outerRadius * Math.sin(angle));
+      ctx.lineTo(innerRadius * Math.cos(angle), innerRadius * Math.sin(angle));
+      ctx.stroke();
+    }
   }
 }
 
+// Canvas declarations
+const canvas = document.querySelector(".myCanvas") as HTMLCanvasElement;
+canvas.height = canvas.width = 700;
+const ctx = canvas.getContext("2d");
+
+let lastFrame: DOMHighResTimeStamp;
+
+var state = { orreryUpdated: false, idle: false, darkMode: true };
+
+function init() {
+  drawBG();
+  drawOrrery();
+  window.requestAnimationFrame(render);
+}
+
 /**
+ * Draws a new frame.
  *
- * @param x1 x-component of coordinate 1
- * @param y1 y-component of coordinate 1
- * @param x2 x-component of coordinate 2
- * @param y2 y-component of coordinate 2
- * @returns
+ * @param {DOMHighResTimeStamp} timeStamp the end time of the previous
+ * frame's rendering
  */
-function dist(x1: number, y1: number, x2: number, y2: number): number {
-  return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+function render(timeStamp: DOMHighResTimeStamp) {
+  if (lastFrame === undefined) {
+    lastFrame = timeStamp;
+  }
+  const elapsed = timeStamp - lastFrame;
+
+  state.orreryUpdated = false;
+  for (var body of bodies) {
+    body.moveToken(elapsed);
+  }
+  drawBG();
+  drawOrrery();
+  lastFrame = timeStamp;
+  requestAnimationFrame(render);
 }
 
 // Interactivity
 canvas.addEventListener(
   "click",
   function (event) {
-    console.debug("registered click");
     // var mouseX = event.pageX - canvasLeft - centerX,
     //   mouseY = event.pageY - canvasTop - centerY,
     //   mouseRadius = Math.sqrt(mouseX ** 2 + mouseY ** 2);
@@ -287,10 +255,8 @@ canvas.addEventListener(
     for (const body of bodies) {
       body.passMonth();
     }
-    requestAnimationFrame(render);
   },
   false
 );
 
-drawOrrery();
-requestAnimationFrame(render);
+init();
