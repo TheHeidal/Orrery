@@ -4,20 +4,8 @@
  * @TheHeidal
  */
 
-// Canvas declarations
-const canvas = document.querySelector(".myCanvas") as HTMLCanvasElement;
-canvas.height = canvas.width = 700;
-var height: number,
-  width = (height = canvas.width),
-  center = { x: width / 2, y: height / 2 };
-const ctx = canvas.getContext("2d");
-
-var state = { redrawOrrery: false, idle: false, darkMode: true };
-var speedVar = 1000000; //TODO: understand the units for this
-
 type degree = number;
 type radian = number;
-
 type Style =
   | { fillStyle: string | CanvasGradient | CanvasPattern }
   | {
@@ -27,10 +15,20 @@ type Style =
       lineDash?: number[];
     };
 
+// Canvas declarations
+const canvas = document.querySelector(".myCanvas") as HTMLCanvasElement;
+canvas.height = canvas.width = 700;
+var height: number,
+  width = (height = canvas.width),
+  center = { x: width / 2, y: height / 2 };
+const ctx = canvas.getContext("2d");
+
+var state = { redrawOrrery: false, idle: false, darkMode: true };
+var speedVar = 1000000;
+
 //TODO: update class documentation
 /**
  * A planet on the Orrery, representing both the token and the ring it is on.
- * @property {string} name
  * @property {number} numDivisions how many positions exist on the ring.
  * @property {degree} divisionArcLength the angle between the ws and cw edges.
  * @property {degree} divisionOffset The angle that the widdershins edge of the
@@ -42,25 +40,21 @@ type Style =
  */
 
 abstract class CelestialBody {
-  tokenPath: Path2D;
-  // angle properties
+  protected ringPath: Path2D;
+  protected tokenPath: Path2D;
   protected trueWiddershinsAngle: degree;
-  destinationWsAngle: degree;
+  protected destinationWsAngle: degree;
 
   /**
-   * @param {string} name The name of the body.
-   * @param {number} numDivisions How many segments the ring is divided into.
-   * @param {dumber} divisionOffset The offset of the first division from the
+   * @param numDivisions How many segments the ring is divided into.
+   * @param divisionOffset The offset of the first division from the
    * x-axis.
-   * @param {Number} divisionsTokenSpans How many divisions the token takes up.
-   * @param {number} outerRadius The distance from the center of the orrery to
+   * @param divisionsTokenSpans How many divisions the token takes up.
+   * @param outerRadius The distance from the center of the orrery to
    * the outside of the ring.
-   * @param {number} innerRadius The distance from the center of the orrery to
+   * @param  innerRadius The distance from the center of the orrery to
    * the inside of the ring.
-   * @param {Style} ringStyle How to style the ring.
-   * @param {Style} tokenStyle How to style the token.
-   *
-   * @param {number} tokenPosition Which division shares a widdershins edge
+   * @param tokenStartingDivision Which division shares a widdershins edge
    * with the token (0-indexed from the first position on the x-axis)
    */
   constructor(
@@ -74,10 +68,10 @@ abstract class CelestialBody {
     public ringStyle: Style,
     public tokenStyle: Style,
 
-    tokenPosition: number
+    tokenStartingDivision: number
   ) {
     this.destinationWsAngle = this.wsAngle =
-      this.divisionAngle * tokenPosition + this.divisionOffset;
+      this.divisionAngle * tokenStartingDivision + this.divisionOffset;
   }
 
   /**
@@ -87,8 +81,10 @@ abstract class CelestialBody {
     this.destinationWsAngle += this.tokenArcLength;
   }
 
-  moveToken(timestamp): void {
-    //TODO: tokens accelerate for some reason?
+  moveToken(timestamp: DOMHighResTimeStamp): void {
+    //TODO: I have misunderstood timestamp. Timestamp records how long the window has been open.
+    console.debug(timestamp);
+    var timeDelta;
     if (state.idle) {
       this.wsAngle += this.speed * timestamp;
       state.redrawOrrery = true;
@@ -108,17 +104,30 @@ abstract class CelestialBody {
    * @param {CanvasRenderingContext2D} context
    */
   drawRing(context: CanvasRenderingContext2D) {
+    this.ringPath = new Path2D();
+    this.ringPath.arc(
+      center.x,
+      center.y,
+      this.outerRadius,
+      0,
+      degToRad(360),
+      false
+    );
+    this.ringPath.arc(
+      center.x,
+      center.y,
+      this.innerRadius,
+      0,
+      degToRad(360),
+      true
+    );
     context.fillStyle = this.ringStyle.fillStyle;
-    context.beginPath();
-    context.arc(center.x, center.y, this.outerRadius, 0, degToRad(360), false);
-    context.arc(center.x, center.y, this.innerRadius, 0, degToRad(360), true);
-    context.fill();
+    context.fill(this.ringPath);
   }
 
   /**
    * Returns whether a position is within the bounds of the planet's token.
-   * @param {number} x the x-offset relative to the center of the Orrery, positive is right.
-   * @param {number} y the y-offset relative to the center of the Orrery, positive is down.
+   * Position is relative to the context
    */
   isPointInRing(x: number, y: number): boolean {
     var radius = Math.sqrt(x ** 2 + y ** 2);
@@ -289,7 +298,6 @@ class Star extends CelestialBody {
   }
 
   updateTokenPath(): void {
-
     this.tokenPath = new Path2D();
     var x = this.tokenCenterpoint.x;
     var y = this.tokenCenterpoint.y;
@@ -418,7 +426,7 @@ const bodies: CelestialBody[] = [Sun, Sat, Jup, Mar, Ven, Mer];
  * @param {DOMHighResTimeStamp} timeElapsed the end time of the previous
  * frame's rendering
  */
-function render(timeElapsed: DOMHighResTimeStamp = 0) {
+function render(timeElapsed: DOMHighResTimeStamp) {
   // Background
   state.redrawOrrery = false;
   for (var body of bodies) {
@@ -513,45 +521,6 @@ function drawOrrery() {
   }
 }
 
-// helper functions
-/**
- * Converts an angle in degrees to radians
- * @param {degree}
- * @returns {radian}
- */
-function degToRad(degrees: degree): radian {
-  return ((degrees * Math.PI) / 180) as radian;
-}
-
-/**
- * Converts an angle in radians to degrees
- * @param radians An angle in degrees.
- */
-function radToDeg(radians) {
-  return (radians * 180) / Math.PI;
-}
-/**
- * Returns the angle in radians between a 2d vector and the x-axis.
- * @param {Number} xComponent
- * @param {Number} yComponent
- * @returns
- */
-function vecToAngle(xComponent: number, yComponent: number) {
-  if (xComponent >= 0) {
-    return (Math.atan(yComponent / xComponent) + Math.PI * 2) % (Math.PI * 2);
-  } else {
-    return Math.atan(yComponent / xComponent) + Math.PI;
-  }
-}
-/**
- * Returns a positive solution to n % m
- * @param {Number} n
- * @param {Number} m
- */
-function posMod(n: number, m: number) {
-  return ((n % m) + m) % m;
-}
-
 /**
  * Draws equally spaced lines about the center from outerRadius to innerRadius
  * @param {number} outerRadius
@@ -580,6 +549,7 @@ function divisionPath(
   }
   return path;
 }
+
 /**
  * Draws equally spaced lines about the center from outerRadius to innerRadius
  * @param {Number} outerRadius
@@ -608,8 +578,23 @@ function subdivide(
   }
 }
 
-function dist(x1, y1, x2, y2) {
+/**
+ *
+ * @param x1 x-component of coordinate 1
+ * @param y1 y-component of coordinate 1
+ * @param x2 x-component of coordinate 2
+ * @param y2 y-component of coordinate 2
+ * @returns
+ */
+function dist(x1: number, y1: number, x2: number, y2: number): number {
   return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+}
+
+/**
+ * Converts an angle in degrees to radians
+ */
+function degToRad(degrees: degree): radian {
+  return ((degrees * Math.PI) / 180) as radian;
 }
 
 // Interactivity
@@ -630,5 +615,6 @@ canvas.addEventListener(
   },
   false
 );
+
 drawOrrery();
-render();
+requestAnimationFrame(render);
