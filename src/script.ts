@@ -22,21 +22,23 @@ var height: number,
 const ctx = canvas.getContext("2d");
 
 var state = { redrawOrrery: false, idle: false, darkMode: true };
-var speedVar = 1000000;
 
 /**
  * A planet on the Orrery, representing both the token and the ring it is on.
- * @property {number} numDivisions how many subdivisions the ring is split into.
- * @property {degree} divisionArcLength the angle between the ws and cw edges.
- * @property {degree} divisionOffset The angle that the widdershins edge of the
+ * @property numDivisions how many subdivisions the ring is split into.
+ * @property divisionArcLength the angle between the ws and cw edges.
+ * @property divisionOffset The angle that the widdershins edge of the
  * first division is offset from the x-axis.
- * @property {number} divisionSpan How many divisions the token takes up.
- * @property {degree} tokenArcLength the angle between the ws and cw edges.
- * @property {degree} wsPosition the angle of the widdershins edge of the token in degrees.
- * @property {degree} cwPosition the angle of the clockwise edge of the token in degrees.
+ * @property divisionSpan How many divisions the token takes up.
+ * @property tokenAngle the angle between the ws and cw edges.
+ * @property wsPosition the angle of the widdershins edge of the token in degrees.
+ * @property cwPosition the angle of the clockwise edge of the token in degrees.
+ *
+ * @property ringPath The path describing the ring, centered on the origin.
+ * @property tokenPath The path describing the token, centered on the origin.
  */
-
 abstract class CelestialBody {
+  //TODO: does it make more sense to split Ring and Token into their own classes and make CBs a container?
   protected ringPath: Path2D;
   protected tokenPath: Path2D;
   protected trueWiddershinsPosition: number; //protected to make sure tokenpath is updated any time the angle changes
@@ -67,6 +69,10 @@ abstract class CelestialBody {
 
     tokenStartingDivision: number
   ) {
+    this.ringPath = new Path2D();
+    this.ringPath.arc(0, 0, this.outerRadius, 0, degToRad(360), false);
+    this.ringPath.arc(0, 0, this.innerRadius, 0, degToRad(360), true);
+    // tokenPath has to be calculated by the subclass
     this.destinationWsPosition = this.wsPosition =
       this.divisionAngle * tokenStartingDivision + this.divisionOffset;
   }
@@ -97,27 +103,12 @@ abstract class CelestialBody {
   }
 
   /**
-   * Draws the ring onto the given context. Does not do subdivisions, stroke or text!
+   * Draws the ring onto the given context with its center on the origin
+   *
+   * . Does not do subdivisions, stroke or text! (yet)
    * @param {CanvasRenderingContext2D} context
    */
   drawRing(context: CanvasRenderingContext2D) {
-    this.ringPath = new Path2D();
-    this.ringPath.arc(
-      center.x,
-      center.y,
-      this.outerRadius,
-      0,
-      degToRad(360),
-      false
-    );
-    this.ringPath.arc(
-      center.x,
-      center.y,
-      this.innerRadius,
-      0,
-      degToRad(360),
-      true
-    );
     context.fillStyle = this.ringStyle.fillStyle;
     context.fill(this.ringPath);
   }
@@ -162,12 +153,12 @@ abstract class CelestialBody {
   }
 
   get speed(): number {
-    return this.tokenAngle / speedVar;
+    return this.tokenAngle / 1000000;
   }
 
   /**
    * The position of the widdershins edge of the token as an angle in degrees.
-   * 
+   *
    * 0 is the positive x axis, 90 is the positive y axis.
    */
   get wsPosition(): number {
@@ -181,7 +172,7 @@ abstract class CelestialBody {
 
   /**
    * The position of the clockwise edge of the token as an angle in degrees.
-   * 
+   *
    * 0 is the positive x axis, 90 is the positive y axis.
    */
   get cwPosition(): number {
@@ -208,20 +199,20 @@ class Planet extends CelestialBody {
   updateTokenPath(): void {
     this.tokenPath = new Path2D();
     this.tokenPath.arc(
-      center.x,
-      center.y,
+      0,
+      0,
       this.outerRadius,
       degToRad(this.wsPosition),
       degToRad(this.cwPosition),
       false
     );
     this.tokenPath.lineTo(
-      center.x + this.innerRadius * Math.cos(degToRad(this.cwPosition)),
-      center.y + this.innerRadius * Math.sin(degToRad(this.cwPosition))
+      this.innerRadius * Math.cos(degToRad(this.cwPosition)),
+      this.innerRadius * Math.sin(degToRad(this.cwPosition))
     );
     this.tokenPath.arc(
-      center.x,
-      center.y,
+      0,
+      0,
       this.innerRadius,
       degToRad(this.cwPosition),
       degToRad(this.wsPosition),
@@ -262,6 +253,7 @@ class Star extends CelestialBody {
 
     numDivisions: number,
     divisionOffset: number,
+
     divisionsTokenSpans: number,
 
     outerRadius: number,
@@ -289,17 +281,15 @@ class Star extends CelestialBody {
   }
 
   /**
-   * The center of the token relative to the canvas origin
+   * The center of the token relative to the center of the orrery
    */
   get tokenCenterpoint() {
     const x =
-      center.x +
       this.tokenDistance *
-        Math.cos(degToRad(this.wsPosition + this.divisionAngle / 2));
+      Math.cos(degToRad(this.wsPosition + this.divisionAngle / 2));
     const y =
-      center.y +
       this.tokenDistance *
-        Math.sin(degToRad(this.wsPosition + this.divisionAngle / 2));
+      Math.sin(degToRad(this.wsPosition + this.divisionAngle / 2));
     return {
       x: x,
       y: y,
@@ -311,9 +301,41 @@ class Star extends CelestialBody {
     var x = this.tokenCenterpoint.x;
     var y = this.tokenCenterpoint.y;
     var tokenRadius = this.tokenRadius;
-    var circle = degToRad(360);
-    this.tokenPath.arc(x, y, tokenRadius, 0, circle, false);
-    this.tokenPath.closePath();
+    this.tokenPath.arc(x, y, tokenRadius, 0, degToRad(360), false);
+  }
+
+  drawRing(context: CanvasRenderingContext2D): void {
+    super.drawRing(context);
+    this.drawLabels(context);
+  }
+
+  drawLabels(context: CanvasRenderingContext2D): void {
+    context.save();
+    context.rotate(degToRad(360 / (2 * this.numDivisions)));
+    //TODO: make a class property so I can customize them
+    context.fillStyle = colors.nearBlack;
+    context.textAlign = "center";
+    context.font = "25px serif";
+
+    for (const sign of [
+      "Aries",
+      "Taurus",
+      "Gemini",
+      "Cancer",
+      "Leo",
+      "Virgo",
+      "Libra",
+      "Scorpio",
+      "Sagittarius",
+      "Capricorn",
+      "Aquarius",
+      "Pisces",
+    ]) {
+      context.fillText(sign, 0, -distances.txt);
+      context.rotate(degToRad(this.divisionAngle));
+    }
+
+    context.restore();
   }
 }
 
@@ -451,6 +473,7 @@ function render(timeElapsed: DOMHighResTimeStamp) {
 function drawOrrery() {
   ctx.fillStyle = state.darkMode ? colors.bgColorDark : colors.bgColorLite;
   ctx.fillRect(0, 0, width, height);
+
   //Sun ring
   ctx.lineWidth = 3;
   ctx.strokeStyle = "red";
@@ -459,16 +482,17 @@ function drawOrrery() {
   ctx.stroke();
 
   //Rings
-  Sun.drawRing(ctx);
-  drawMonthText();
-  Sat.drawRing(ctx);
-  Sat.drawRing(ctx);
-  Jup.drawRing(ctx);
-  Mar.drawRing(ctx);
-  Ven.drawRing(ctx);
-  Mer.drawRing(ctx);
-
-  //Text
+  ctx.save();
+  ctx.translate(center.x, center.y);
+  {
+    Sun.drawRing(ctx);
+    Sat.drawRing(ctx);
+    Sat.drawRing(ctx);
+    Jup.drawRing(ctx);
+    Mar.drawRing(ctx);
+    Ven.drawRing(ctx);
+    Mer.drawRing(ctx);
+  }
 
   //Divisions
   ctx.lineWidth = 2;
@@ -497,37 +521,7 @@ function drawOrrery() {
   for (var body of bodies) {
     body.drawToken(ctx);
   }
-
-  function drawMonthText() {
-    //TODO: move to Star
-    ctx.save();
-    ctx.translate(center.x, center.y);
-    ctx.rotate(degToRad(15));
-
-    ctx.fillStyle = colors.nearBlack;
-    ctx.textAlign = "center";
-    ctx.font = "25px serif";
-
-    for (const sign of [
-      "Aries",
-      "Taurus",
-      "Gemini",
-      "Cancer",
-      "Leo",
-      "Virgo",
-      "Libra",
-      "Scorpio",
-      "Sagittarius",
-      "Capricorn",
-      "Aquarius",
-      "Pisces",
-    ]) {
-      ctx.fillText(sign, 0, -distances.txt);
-      ctx.rotate(degToRad(30));
-    }
-
-    ctx.restore();
-  }
+  ctx.restore();
 }
 
 /**
@@ -575,14 +569,8 @@ function subdivide(
   for (let i = 0; i < divisions; i++) {
     ctx.beginPath();
     const angle = degToRad((360 / divisions) * i + offsetAngle);
-    ctx.moveTo(
-      center.x + outerRadius * Math.cos(angle),
-      center.y + outerRadius * Math.sin(angle)
-    );
-    ctx.lineTo(
-      center.x + innerRadius * Math.cos(angle),
-      center.y + innerRadius * Math.sin(angle)
-    );
+    ctx.moveTo(outerRadius * Math.cos(angle), outerRadius * Math.sin(angle));
+    ctx.lineTo(innerRadius * Math.cos(angle), innerRadius * Math.sin(angle));
     ctx.stroke();
   }
 }
@@ -603,7 +591,7 @@ function dist(x1: number, y1: number, x2: number, y2: number): number {
  * Converts an angle in degrees to radians
  */
 function degToRad(degrees: number): number {
-  return ((degrees * Math.PI) / 180);
+  return (degrees * Math.PI) / 180;
 }
 
 // Interactivity
