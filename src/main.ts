@@ -232,7 +232,7 @@ function render(timeStamp: DOMHighResTimeStamp) {
   const elapsed = timeStamp - lastFrame;
 
   for (var body of bodies) {
-    body.moveToken(elapsed);
+    body.updateTokenPosition(elapsed);
     updateLabel(body);
   }
   drawOrrery();

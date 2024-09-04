@@ -4,11 +4,9 @@ import type { name as Name, Style, TextStyle } from "./types.js";
 /**
  * A planet on the Orrery, representing both the token and the ring it is on.
  * @property numDivisions how many subdivisions the ring is split into.
- * @property divisionArcLength the angle between the ws and cw edges.
- * @property divisionOffset The angle that the widdershins edge of the
- * first division is offset from the x-axis.
- * @property divisionSpan How many divisions the token takes up.
- * @property tokenAngle the angle between the ws and cw edges.
+ * @property divisionOffset The angle that the first division is offset from the x-axis.
+ * 
+ * @property tokenAngle The angle between the token's edges in degrees
  * @property wsPosition the angle of the widdershins edge of the token in degrees.
  * @property cwPosition the angle of the clockwise edge of the token in degrees.
  *
@@ -19,6 +17,9 @@ export abstract class CelestialBody {
   //TODO: does it make more sense to split Ring and Token into their own classes and make CBs a container?
   protected ringPath: Path2D;
   protected tokenPath: Path2D;
+
+  protected tokenAngle: number;
+
   protected trueWiddershinsPosition: number; //protected to make sure tokenpath is updated any time the angle changes
   protected destinationWsPosition: number;
 
@@ -38,7 +39,7 @@ export abstract class CelestialBody {
     public readonly name: Name,
     public readonly numDivisions: number,
     public readonly divisionOffset: number,
-    public readonly divisionsTokenSpans: number,
+    divisionsTokenSpans: number,
 
     public outerRadius: number,
     public innerRadius: number,
@@ -51,8 +52,11 @@ export abstract class CelestialBody {
     this.ringPath.arc(0, 0, this.outerRadius, 0, degToRad(360), false);
     this.ringPath.arc(0, 0, this.innerRadius, 0, degToRad(360), true);
     // tokenPath has to be calculated by the subclass
-    this.destinationWsPosition = this.wsPosition =
-      this.divisionAngle * tokenStartingDivision + this.divisionOffset;
+
+    this.tokenAngle = divisionsTokenSpans * (360 / numDivisions);
+    this.wsPosition =
+      (360 / numDivisions) * tokenStartingDivision + this.divisionOffset;
+    this.destinationWsPosition = this.wsPosition;
   }
 
   /**
@@ -62,7 +66,7 @@ export abstract class CelestialBody {
     this.destinationWsPosition += this.tokenAngle;
   }
 
-  moveToken(elapsed: DOMHighResTimeStamp): void {
+  updateTokenPosition(elapsed: DOMHighResTimeStamp): void {
     if (this.destinationWsPosition > this.wsPosition) {
       this.wsPosition = Math.min(
         this.wsPosition + this.speed * elapsed,
@@ -84,11 +88,13 @@ export abstract class CelestialBody {
 
   /**
    * Returns whether a position is within the bounds of the planet's ring.
-   * Position is relative to the context
+   * Position is relative to the origin of the orrery
    */
   isPointInRing(x: number, y: number): boolean {
-    var radius = Math.sqrt(x ** 2 + y ** 2);
-    return radius > this.innerRadius && radius < this.outerRadius;
+    var distFromCenter = Math.sqrt(x ** 2 + y ** 2);
+    return (
+      distFromCenter > this.innerRadius && distFromCenter < this.outerRadius
+    );
   }
 
   /**
@@ -148,20 +154,6 @@ export abstract class CelestialBody {
     return this.wsPosition + this.tokenAngle;
   }
 
-  /**
-   * The angle between the token's widdershins and clockwise edges in degrees
-   */
-  get tokenAngle(): number {
-    return this.divisionsTokenSpans * this.divisionAngle;
-  }
-
-  /**
-   * The angle of one division of the ring in degrees
-   * @returns {number}
-   */
-  get divisionAngle(): number {
-    return 360 / this.numDivisions;
-  }
 }
 /**Celestial Bodies with pie-crust shaped tokens */
 export class Planet extends CelestialBody {
@@ -258,10 +250,10 @@ export class Star extends CelestialBody {
   get tokenCenterpoint() {
     const x =
       this.tokenDistance *
-      Math.cos(degToRad(this.wsPosition + this.divisionAngle / 2));
+      Math.cos(degToRad(this.wsPosition + this.tokenAngle / 2));
     const y =
       this.tokenDistance *
-      Math.sin(degToRad(this.wsPosition + this.divisionAngle / 2));
+      Math.sin(degToRad(this.wsPosition + this.tokenAngle / 2));
     return {
       x: x,
       y: y,
@@ -304,7 +296,7 @@ export class Star extends CelestialBody {
       "Pisces",
     ]) {
       context.fillText(sign, 0, -this.textStyle.yOffset);
-      context.rotate(degToRad(this.divisionAngle));
+      context.rotate(degToRad(360 / this.numDivisions));
     }
 
     context.restore();
