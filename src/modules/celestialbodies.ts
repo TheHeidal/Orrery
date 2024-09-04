@@ -156,7 +156,7 @@ export abstract class CelestialBody {
   }
 
   /**
-   * The angle of one division of the ring in degres
+   * The angle of one division of the ring in degrees
    * @returns {number}
    */
   get divisionAngle(): number {

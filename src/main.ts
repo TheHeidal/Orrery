@@ -134,6 +134,7 @@ function drawBG() {
  * Draws the Orrery ring by ring
  */
 function drawOrrery() {
+  drawBG();
   ctx.save();
   ctx.translate(
     { x: canvas.width / 2, y: canvas.height / 2 }.x,
@@ -214,7 +215,6 @@ let lastFrame: DOMHighResTimeStamp;
 var state = { orreryUpdated: false, idle: false, darkMode: true };
 
 function init() {
-  drawBG();
   drawOrrery();
   window.requestAnimationFrame(render);
 }
@@ -235,7 +235,6 @@ function render(timeStamp: DOMHighResTimeStamp) {
     body.moveToken(elapsed);
     updateLabel(body);
   }
-  drawBG();
   drawOrrery();
   lastFrame = timeStamp;
   requestAnimationFrame(render);
@@ -258,6 +257,15 @@ canvas.addEventListener(
   },
   false
 );
+
+canvas.addEventListener(
+  "mousemove",
+  function (event) {
+    console.debug(event.offsetX, event.offsetY);
+    // var mouseX = event.pageX - canvasLeft,
+    //   mouseY = event.pageY - canvasTop;
+  }
+)
 
 
 
