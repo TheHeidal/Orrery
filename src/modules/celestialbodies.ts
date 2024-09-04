@@ -1,5 +1,5 @@
 import { degToRad } from "./misc.js";
-import type { name as Name, Style, TextStyle } from "./style.js";
+import type { name as Name, Style, TextStyle } from "./types.js";
 
 /**
  * A planet on the Orrery, representing both the token and the ring it is on.
