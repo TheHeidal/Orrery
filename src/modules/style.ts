@@ -13,3 +13,5 @@ export type Style =
       lineWidth: number;
       lineDash?: number[];
     };
+
+export type name = "Mercury" | "Venus" | "Mars" | "Jupiter" | "Saturn" | "Sun";

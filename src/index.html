@@ -12,38 +12,39 @@
 
 <body>
     <h1>The Orrery.</h1>
-    <section id="mainbox">
+    <section class="mainBox">
         <canvas class="myCanvas">
-            <p>Add suitable fallback here.</p>
+            <p>The Orrery.</p>
         </canvas>
-        <!-- <aside>
-            <h2>Rules</h2>
-            <p>During the Planning Phase, spend time by placing a Token…</p>
-            <ul>
-                <li>On the Meeting Phase, to attend the Wizardmoot. (Encouraged, but not required)</li>
-                <li>On the Orrery, to move any celestial body (besides the Sun) forward or backwards a distance equal to
-                    its
-                    arc.</li>
-                <li>On one of your Companions, to get +1 in their associated Element for the month.</li>
-                <li>On your Codex, to change the Lore of your Isle, Sanctum, or Secrets.</li>
-                <li>On your Domain, to fulfill some aspect of your Domain's mechanics.</li>
-                <li>With the Grimoire, to cast a spell Patiently. </li>
-                <li>Anywhere else the game provides.</li>
-            </ul>
-            <p>You may also place your Star…</p>
-            <ul>
-                <li>On one of your Tokens, in order to turn that action into a scene, and play out what happens there.
-                </li>
-                <li>On another Wizard, to have a scene with that Wizard in a location and context of his choice.</li>
-            </ul>
-        </aside> -->
+        <section class="infoBox">
+            <form>
+                <fieldset id="controls">
+                    <legend>Adjust the diameter of the rings</legend>
+                    <input type="number" id="sunRingDiameterInput" name="sunRingDiameter" value="265">
+                    <label for="sunRingDiameterInput"> Sun Ring</label><br />
+                    <input type="number" id="monRingDiameterInput" name="monRingDiameter" value="250">
+                    <label for="monRingDiameterInput"> Month Ring</label><br />
+                </fieldset>
+            </form>
+            <section>
+                <h2> Token Positions</h1>
+                    <section class="tokenPositions">
+                        <p id="mercuryPosition" class="valueText">0</p>
+                        <p class="mercuryText Label">☿</p>
+                        <p id="venusPosition" class="valueText">0</p>
+                        <p class="venusText Label">♀</p>
+                        <p id="marsPosition" class="valueText">0</p>
+                        <p class="marsText Label">♂</p>
+                        <p id="jupiterPosition" class="valueText">0</p>
+                        <p class="jupiterText Label">♃</p>
+                        <p id="saturnPosition" class="valueText">0</p>
+                        <p class="saturnText Label">♄</p>
+                        <p id="sunPosition" class="valueText">0</p>
+                        <p class="sunText Label">☉</p>
+                    </section>
+            </section>
+        </section>
     </section>
-    <!-- <form>
-        <fieldset id="controls">
-            <legend>Adjust the diameter of the rings</legend>
-            <input type="number" id="sunRingDiameterInput" name="sunRingDiameter" value="265">
-        </fieldset>
-    </form> -->
 </body>
 
 </html>

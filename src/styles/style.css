@@ -1,7 +1,7 @@
 html {
   background-color: #043263;
   color: white;
-  font-size: 10px;
+  font-size: 20px;
   font-family: "Alegreya", Georgia, serif;
   padding: 20px 0 20px 0;
 }
@@ -21,12 +21,6 @@ h1 {
   text-align: center;
 }
 
-img {
-  display:block;
-  padding: 10px;
-  margin: 0 auto;
-}
-
 p,
 li {
   font-size: 1.5em;
@@ -38,9 +32,53 @@ aside {
   padding-left: 10px;
 }
 
-.image {
-  position: absolute;
-  width: 100px;
-  height: 100px;
-  border: 1px solid red;
+.mainBox {
+  padding: 10px;
+  display:flex;
+  flex-direction: row;
+  column-gap: 10px;
+}
+
+canvas {
+  width:700px;
+  height:700px;
+}
+
+.infoBox {
+  display:flex;
+  flex-direction: column;
+}
+
+.tokenPositions {
+  display: grid;
+  grid-template-columns: 200px 30px;
+}
+
+.tokenPositions p {
+  margin: 5px 5px;
+}
+
+.valueText{
+  text-align: right;
+}
+
+.mercuryText {
+  color:#993CF3;
+}
+
+.venusText {
+  color:#47e63f;
+}
+
+.marsText {
+  color:#cc0001;
+}
+.jupiterText {
+  color:#e69137;
+}
+.saturnText {
+  color:#434343;
+}
+.sunText {
+  color:#ffab40;
 }

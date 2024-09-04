@@ -1,5 +1,5 @@
 import { degToRad } from "./misc.js";
-import type { Style, TextStyle } from "./style.js";
+import type { name as Name, Style, TextStyle } from "./style.js";
 
 /**
  * A planet on the Orrery, representing both the token and the ring it is on.
@@ -35,7 +35,7 @@ export abstract class CelestialBody {
    * with the token (0-indexed from the first position on the x-axis)
    */
   constructor(
-    public readonly name: string,
+    public readonly name: Name,
     public readonly numDivisions: number,
     public readonly divisionOffset: number,
     public readonly divisionsTokenSpans: number,
@@ -219,7 +219,7 @@ export class Star extends CelestialBody {
    * with the token (0-indexed from the first position on the x-axis)
    */
   constructor(
-    name: string,
+    name: Name,
 
     numDivisions: number,
     divisionOffset: number,

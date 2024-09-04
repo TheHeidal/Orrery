@@ -231,9 +231,9 @@ function render(timeStamp: DOMHighResTimeStamp) {
   }
   const elapsed = timeStamp - lastFrame;
 
-  state.orreryUpdated = false;
   for (var body of bodies) {
     body.moveToken(elapsed);
+    updateLabel(body);
   }
   drawBG();
   drawOrrery();
@@ -258,5 +258,23 @@ canvas.addEventListener(
   },
   false
 );
+
+
+
+const labels = {
+  "Mercury" : document.getElementById("mercuryPosition") as HTMLParagraphElement,
+  "Venus" : document.getElementById("venusPosition") as HTMLParagraphElement,
+  "Mars" : document.getElementById("marsPosition") as HTMLParagraphElement,
+  "Jupiter" : document.getElementById("jupiterPosition") as HTMLParagraphElement,
+  "Saturn" : document.getElementById("saturnPosition") as HTMLParagraphElement,
+  "Sun" : document.getElementById("sunPosition") as HTMLParagraphElement,
+}
+
+function updateLabel(body: CelestialBody) {
+  if (body.name in labels) {
+    labels[body.name].innerText = `${Math.round(body.wsPosition)}`;
+    
+  } 
+}
 
 init();
