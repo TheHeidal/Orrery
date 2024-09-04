@@ -125,16 +125,13 @@ var Mer = new Planet(
 // const bodies = [Sun, Sat, Jup, Mar, Ven, Mer];
 const bodies: CelestialBody[] = [Sun, Sat, Jup, Mar, Ven, Mer];
 
-function drawBG() {
-  ctx.fillStyle = state.darkMode ? colors.bgColorDark : colors.bgColorLite;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-}
-
 /**
  * Draws the Orrery ring by ring
- */
+*/
 function drawOrrery() {
-  drawBG();
+  ctx.fillStyle = state.darkMode ? colors.bgColorDark : colors.bgColorLite;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
   ctx.save();
   ctx.translate(
     { x: canvas.width / 2, y: canvas.height / 2 }.x,
