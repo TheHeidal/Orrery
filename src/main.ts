@@ -127,7 +127,7 @@ const bodies: CelestialBody[] = [Sun, Sat, Jup, Mar, Ven, Mer];
 
 /**
  * Draws the Orrery ring by ring
-*/
+ */
 function drawOrrery() {
   ctx.fillStyle = state.darkMode ? colors.bgColorDark : colors.bgColorLite;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -241,13 +241,6 @@ function render(timeStamp: DOMHighResTimeStamp) {
 canvas.addEventListener(
   "click",
   function (event) {
-    // var mouseX = event.pageX - canvasLeft - centerX,
-    //   mouseY = event.pageY - canvasTop - centerY,
-    //   mouseRadius = Math.sqrt(mouseX ** 2 + mouseY ** 2);
-    // console.log(
-    //   `(${mouseX}, ${mouseY})\nangle: ${radToDeg(vecToAngle(mouseX, mouseY))}`
-    // );
-    // state.clickToggle = state.clickToggle == false;
     for (const body of bodies) {
       body.passMonth();
     }
@@ -255,31 +248,25 @@ canvas.addEventListener(
   false
 );
 
-canvas.addEventListener(
-  "mousemove",
-  function (event) {
-    console.debug(event.offsetX, event.offsetY);
-    // var mouseX = event.pageX - canvasLeft,
-    //   mouseY = event.pageY - canvasTop;
-  }
-)
-
-
-
-const labels = {
-  "Mercury" : document.getElementById("mercuryPosition") as HTMLParagraphElement,
-  "Venus" : document.getElementById("venusPosition") as HTMLParagraphElement,
-  "Mars" : document.getElementById("marsPosition") as HTMLParagraphElement,
-  "Jupiter" : document.getElementById("jupiterPosition") as HTMLParagraphElement,
-  "Saturn" : document.getElementById("saturnPosition") as HTMLParagraphElement,
-  "Sun" : document.getElementById("sunPosition") as HTMLParagraphElement,
-}
+canvas.addEventListener("mousemove", function (event) {
+  console.debug(event.offsetX, event.offsetY);
+  // var mouseX = event.pageX - canvasLeft,
+  //   mouseY = event.pageY - canvasTop;
+});
 
 function updateLabel(body: CelestialBody) {
-  if (body.name in labels) {
-    labels[body.name].innerText = `${Math.round(body.wsPosition)}`;
-    
-  } 
+  const positionLabels = {
+    Mercury: document.getElementById("mercuryPosition") as HTMLParagraphElement,
+    Venus: document.getElementById("venusPosition") as HTMLParagraphElement,
+    Mars: document.getElementById("marsPosition") as HTMLParagraphElement,
+    Jupiter: document.getElementById("jupiterPosition") as HTMLParagraphElement,
+    Saturn: document.getElementById("saturnPosition") as HTMLParagraphElement,
+    Sun: document.getElementById("sunPosition") as HTMLParagraphElement,
+  };
+
+  if (body.name in positionLabels) {
+    positionLabels[body.name].innerText = `${Math.round(body.wsPosition)}`;
+  }
 }
 
 init();
