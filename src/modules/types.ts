@@ -17,8 +17,7 @@ export type Style =
 export type StyleSet = {
   default: Style;
   hovered?: Style;
-}
-
+};
 export type Name = "Mercury" | "Venus" | "Mars" | "Jupiter" | "Saturn" | "Sun";
-export type Point = { x: number; y: number; };
-
+export type Point = { x: number; y: number };
+export type Orrery = { canvas: CanvasRenderingContext2D; orreryCenter: Point, mousePosition:Point|false};

@@ -7,6 +7,7 @@
 import { degToRad } from "./modules/misc.js";
 import type { CelestialBody } from "./modules/celestialbodies.js";
 import { Star, Planet } from "./modules/celestialbodies.js";
+import { Orrery } from "./modules/types.js";
 
 export var distances = {
   sun: 265,
@@ -43,10 +44,14 @@ var colors = {
 const canvas = document.querySelector(".myCanvas") as HTMLCanvasElement;
 canvas.height = canvas.width = 700;
 const ctx = canvas.getContext("2d");
-
-const orrery = {
+//TODO: refactor to create ring and token paths where they actually are
+/** 
+ * @param mousePosition: position of the mouse relative to the center of the orrery.
+*/
+const orrery: Orrery = {
   canvas: ctx,
   orreryCenter: { x: canvas.width / 2, y: canvas.height / 2 },
+  mousePosition: false,
 };
 
 var Sun = new Star(
@@ -151,8 +156,11 @@ var Mer = new Planet(
     default: { fillStyle: colors.merRingFillColor },
     hovered: { fillStyle: "#FF88DD" },
   },
+  {
+    default: { fillStyle: colors.merTokenFillColor },
+    hovered: { fillStyle: "#CC44BB" },
+  },
 
-  { fillStyle: colors.merTokenFillColor },
   12
 );
 
@@ -280,15 +288,17 @@ canvas.addEventListener(
 );
 
 canvas.addEventListener("mousemove", function (event) {
+  orrery.mousePosition = {
+    x: event.offsetX - orrery.orreryCenter.x,
+    y: event.offsetY - orrery.orreryCenter.y,
+  };
   for (const body of bodies) {
-    body.updateHover({
-      x: event.offsetX - orrery.orreryCenter.x,
-      y: event.offsetY - orrery.orreryCenter.y,
-    });
+    body.updateHover(orrery.mousePosition);
   }
 });
 
 canvas.addEventListener("mouseleave", function (event) {
+  orrery.mousePosition = false;
   for (const body of bodies) {
     body.updateHover(false);
   }

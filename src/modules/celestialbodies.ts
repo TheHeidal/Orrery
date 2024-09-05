@@ -1,5 +1,5 @@
 import { degToRad } from "./misc.js";
-import type { Name, Point, Style, StyleSet, TextStyle } from "./types.js";
+import type { Name, Orrery, Point, Style, StyleSet, TextStyle } from "./types.js";
 
 /**
  * A planet on the Orrery, representing both the token and the ring it is on.
@@ -16,7 +16,7 @@ import type { Name, Point, Style, StyleSet, TextStyle } from "./types.js";
  */
 export abstract class CelestialBody {
   speed: number = 1000;
-  protected renderState: { hoveredRing: boolean; hoveredToken: boolean } = {
+  renderState: { hoveredRing: boolean; hoveredToken: boolean } = {
     hoveredRing: false,
     hoveredToken: false,
   };
@@ -49,7 +49,7 @@ export abstract class CelestialBody {
    * with the token (0-indexed from the first position on the x-axis)
    */
   constructor(
-    public orrery: { canvas: CanvasRenderingContext2D; orreryCenter: Point },
+    public orrery: Orrery,
     public readonly name: Name,
     protected readonly numDivisions: number,
     protected readonly divisionOffset: number,
@@ -109,6 +109,7 @@ export abstract class CelestialBody {
         this.wsPosition + (this.tokenAngle / this.speed) * elapsed,
         this.destinationWsPosition
       );
+      this.updateHover(this.orrery.mousePosition);
     }
   }
 
@@ -129,7 +130,7 @@ export abstract class CelestialBody {
 
   /**
    *
-   * @param position a point relative to the canvas origin
+   * @param position a point relative to the center of the orrery
    */
   isPointInRing(position: Point): boolean {
     return this.orrery.canvas.isPointInPath(
@@ -155,7 +156,7 @@ export abstract class CelestialBody {
       this.renderState.hoveredToken && "hovered" in this.tokenStyleSet
         ? this.tokenStyleSet.hovered
         : this.tokenStyleSet.default;
-    setStyle(context, this.tokenStyleSet.default);
+    setStyle(context, currStyle);
     context.fill(this.tokenPath);
     if ("strokeStyle" in currStyle) {
       context.stroke(this.tokenPath);
@@ -163,7 +164,7 @@ export abstract class CelestialBody {
   }
 
   /**
-   * @param position A position relative the canvas origin, unaffected by the current transformation
+   * @param position A position relative the center of the orrery
    */
   isPointInToken(position: Point): boolean {
     return this.orrery.canvas.isPointInPath(
@@ -252,7 +253,7 @@ export class Star extends CelestialBody {
    * with the token (0-indexed from the first position on the x-axis)
    */
   constructor(
-    orrery: { canvas: CanvasRenderingContext2D; orreryCenter: Point },
+    orrery: Orrery,
     name: Name,
 
     numDivisions: number,
