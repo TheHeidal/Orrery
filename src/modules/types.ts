@@ -14,4 +14,11 @@ export type Style =
       lineDash?: number[];
     };
 
-export type name = "Mercury" | "Venus" | "Mars" | "Jupiter" | "Saturn" | "Sun";
+export type StyleSet = {
+  default: Style;
+  hovered?: Style;
+}
+
+export type Name = "Mercury" | "Venus" | "Mars" | "Jupiter" | "Saturn" | "Sun";
+export type Point = { x: number; y: number; };
+

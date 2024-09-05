@@ -1,11 +1,11 @@
 import { degToRad } from "./misc.js";
-import type { name as Name, Style, TextStyle } from "./types.js";
+import type { Name, Style, StyleSet, TextStyle } from "./types.js";
 
 /**
  * A planet on the Orrery, representing both the token and the ring it is on.
  * @property numDivisions how many subdivisions the ring is split into.
  * @property divisionOffset The angle that the first division is offset from the x-axis.
- * 
+ *
  * @property tokenAngle The angle between the token's edges in degrees
  * @property wsPosition the angle of the widdershins edge of the token in degrees.
  * @property cwPosition the angle of the clockwise edge of the token in degrees.
@@ -14,13 +14,18 @@ import type { name as Name, Style, TextStyle } from "./types.js";
  * @property tokenPath The path describing the token, centered on the origin.
  */
 export abstract class CelestialBody {
-  //TODO: does it make more sense to split Ring and Token into their own classes and make CBs a container?
+  protected renderState: { hoveredRing: boolean; hoveredToken: boolean } = {
+    hoveredRing: false,
+    hoveredToken: false,
+  };
   protected ringPath: Path2D;
   protected tokenPath: Path2D;
+  protected ringStyleSet: StyleSet;
+  protected tokenStyleSet: StyleSet;
 
   protected tokenAngle: number;
 
-  protected trueWiddershinsPosition: number; //protected to make sure tokenpath is updated any time the angle changes
+  protected trueWiddershinsPosition: number; //protected to make sure tokenPath is updated any time the angle changes
   protected destinationWsPosition: number;
 
   /**
@@ -28,26 +33,38 @@ export abstract class CelestialBody {
    * @param divisionOffset The offset of the first division from the
    * x-axis.
    * @param divisionsTokenSpans How many divisions the token takes up.
+   *
    * @param outerRadius The distance from the center of the orrery to
    * the outside of the ring.
    * @param  innerRadius The distance from the center of the orrery to
    * the inside of the ring.
+   *
+   * @param ringStyleSet Instructions for styling the ring.
+   * @param tokenStyleSet Instructions for styling the token.
+   *
    * @param tokenStartingDivision Which division shares a widdershins edge
    * with the token (0-indexed from the first position on the x-axis)
    */
   constructor(
     public readonly name: Name,
-    public readonly numDivisions: number,
-    public readonly divisionOffset: number,
+    protected readonly numDivisions: number,
+    protected readonly divisionOffset: number,
     divisionsTokenSpans: number,
 
-    public outerRadius: number,
-    public innerRadius: number,
-    public ringStyle: Style,
-    public tokenStyle: Style,
+    protected outerRadius: number,
+    protected innerRadius: number,
+    ringStyle: Style | StyleSet,
+    tokenStyle: Style | StyleSet,
 
     tokenStartingDivision: number
   ) {
+    if ("default" in ringStyle) {
+      this.ringStyleSet = ringStyle;
+    } else this.ringStyleSet = { default: ringStyle };
+    if ("default" in tokenStyle) {
+      this.tokenStyleSet = tokenStyle;
+    } else this.tokenStyleSet = { default: tokenStyle };
+
     this.ringPath = new Path2D();
     this.ringPath.arc(0, 0, this.outerRadius, 0, degToRad(360), false);
     this.ringPath.arc(0, 0, this.innerRadius, 0, degToRad(360), true);
@@ -82,7 +99,11 @@ export abstract class CelestialBody {
    * @param {CanvasRenderingContext2D} context
    */
   drawRing(context: CanvasRenderingContext2D) {
-    context.fillStyle = this.ringStyle.fillStyle;
+    let currStyle =
+      this.renderState.hoveredRing && "hovered" in this.ringStyleSet
+        ? this.ringStyleSet.hovered
+        : this.ringStyleSet.default;
+    setStyle(context, currStyle);
     context.fill(this.ringPath);
   }
 
@@ -109,12 +130,13 @@ export abstract class CelestialBody {
   drawToken(context: CanvasRenderingContext2D) {
     this.updateTokenPath();
 
-    context.fillStyle = this.tokenStyle.fillStyle;
+    let currStyle =
+      this.renderState.hoveredToken && "hovered" in this.tokenStyleSet
+        ? this.tokenStyleSet.hovered
+        : this.tokenStyleSet.default;
+    setStyle(context, this.tokenStyleSet.default);
     context.fill(this.tokenPath);
-
-    if ("strokeStyle" in this.tokenStyle) {
-      context.strokeStyle = this.tokenStyle.strokeStyle;
-      context.lineWidth = this.tokenStyle.lineWidth;
+    if ("strokeStyle" in currStyle) {
       context.stroke(this.tokenPath);
     }
   }
@@ -153,7 +175,6 @@ export abstract class CelestialBody {
   get cwPosition(): number {
     return this.wsPosition + this.tokenAngle;
   }
-
 }
 /**Celestial Bodies with pie-crust shaped tokens */
 export class Planet extends CelestialBody {
@@ -276,7 +297,6 @@ export class Star extends CelestialBody {
   drawLabels(context: CanvasRenderingContext2D): void {
     context.save();
     context.rotate(degToRad(360 / (2 * this.numDivisions)));
-    //TODO: make a class property so I can customize them
     context.fillStyle = this.textStyle.fillStyle;
     context.textAlign = this.textStyle.textAlign;
     context.font = this.textStyle.font;
@@ -300,5 +320,19 @@ export class Star extends CelestialBody {
     }
 
     context.restore();
+  }
+}
+
+/**
+ * Sets the styling properties of context.
+ * @param context The context to be updated.
+ * @param style The style to be applied.
+ */
+function setStyle(context: CanvasRenderingContext2D, style: Style) {
+  context.fillStyle = style.fillStyle;
+  if ("strokeStyle" in style) {
+    context.strokeStyle = style.strokeStyle;
+    context.lineWidth = style.lineWidth;
+    context.setLineDash("lineDash" in style ? style.lineDash : []);
   }
 }
