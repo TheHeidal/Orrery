@@ -39,7 +39,18 @@ var colors = {
   merTokenFillColor: "#8d7cc2",
 };
 
+// Canvas declarations
+const canvas = document.querySelector(".myCanvas") as HTMLCanvasElement;
+canvas.height = canvas.width = 700;
+const ctx = canvas.getContext("2d");
+
+const orrery = {
+  canvas: ctx,
+  orreryCenter: { x: canvas.width / 2, y: canvas.height / 2 },
+};
+
 var Sun = new Star(
+  orrery,
   "Sun",
   12,
   0,
@@ -64,60 +75,83 @@ var Sun = new Star(
 );
 
 var Sat = new Planet(
+  orrery,
   "Saturn",
   36,
   -5,
   1,
   distances.sat,
   distances.jup,
-  { fillStyle: colors.nearBlack },
+  {
+    default: { fillStyle: colors.nearBlack },
+    hovered: { fillStyle: "#FF88DD" },
+  },
   { fillStyle: colors.satTokenFillColor },
   3
 );
 var Jup = new Planet(
+  orrery,
   "Jupiter",
   48,
   0,
   3,
   distances.jup,
   distances.mar,
-  { fillStyle: colors.jupRingFillColor },
+  {
+    default: { fillStyle: colors.jupRingFillColor },
+    hovered: { fillStyle: "#FF88DD" },
+  },
   { fillStyle: colors.jupTokenFillColor },
   3
 );
 
 var Mar = new Planet(
+  orrery,
   "Mars",
   24,
   0,
   3,
   distances.mar,
   distances.ven,
-  { fillStyle: colors.marRingFillColor },
+  {
+    default: { fillStyle: colors.marRingFillColor },
+    hovered: { fillStyle: "#FF88DD" },
+  },
+
   { fillStyle: colors.marTokenFillColor },
   22
 );
 
 var Ven = new Planet(
+  orrery,
   "Venus",
   24,
   0,
   5,
   distances.ven,
   distances.mer,
-  { fillStyle: colors.venRingFillColor },
+  {
+    default: { fillStyle: colors.venRingFillColor },
+    hovered: { fillStyle: "#FF88DD" },
+  },
+
   { fillStyle: colors.venTokenFillColor },
   14
 );
 
 var Mer = new Planet(
+  orrery,
   "Mercury",
   24,
   0,
   7,
   distances.mer,
   distances.moo,
-  { fillStyle: colors.merRingFillColor },
+  {
+    default: { fillStyle: colors.merRingFillColor },
+    hovered: { fillStyle: "#FF88DD" },
+  },
+
   { fillStyle: colors.merTokenFillColor },
   12
 );
@@ -125,18 +159,28 @@ var Mer = new Planet(
 // const bodies = [Sun, Sat, Jup, Mar, Ven, Mer];
 const bodies: CelestialBody[] = [Sun, Sat, Jup, Mar, Ven, Mer];
 
+let lastFrame: DOMHighResTimeStamp;
+
+var state = { orreryUpdated: false, idle: false, darkMode: true };
+
+function init() {
+  drawOrrery();
+  window.requestAnimationFrame(render);
+}
+
+function drawBG() {
+  ctx.fillStyle = state.darkMode ? colors.bgColorDark : colors.bgColorLite;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
 /**
  * Draws the Orrery ring by ring
  */
 function drawOrrery() {
-  ctx.fillStyle = state.darkMode ? colors.bgColorDark : colors.bgColorLite;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  drawBG();
 
   ctx.save();
-  ctx.translate(
-    { x: canvas.width / 2, y: canvas.height / 2 }.x,
-    { x: canvas.width / 2, y: canvas.height / 2 }.y
-  );
+  ctx.translate(orrery.orreryCenter.x, orrery.orreryCenter.y);
 
   //Sun ring
   ctx.lineWidth = 3;
@@ -187,6 +231,7 @@ function drawOrrery() {
    * @param {Number} offsetAngle offset from the x-axis in degrees
    */
   function subdivide(
+    //TODO: make it use Style and take context as an argument.
     outerRadius: number,
     innerRadius: number,
     divisions: number,
@@ -200,20 +245,6 @@ function drawOrrery() {
       ctx.stroke();
     }
   }
-}
-
-// Canvas declarations
-const canvas = document.querySelector(".myCanvas") as HTMLCanvasElement;
-canvas.height = canvas.width = 700;
-const ctx = canvas.getContext("2d");
-
-let lastFrame: DOMHighResTimeStamp;
-
-var state = { orreryUpdated: false, idle: false, darkMode: true };
-
-function init() {
-  drawOrrery();
-  window.requestAnimationFrame(render);
 }
 
 /**
@@ -249,9 +280,18 @@ canvas.addEventListener(
 );
 
 canvas.addEventListener("mousemove", function (event) {
-  console.debug(event.offsetX, event.offsetY);
-  // var mouseX = event.pageX - canvasLeft,
-  //   mouseY = event.pageY - canvasTop;
+  for (const body of bodies) {
+    body.updateHover({
+      x: event.offsetX - orrery.orreryCenter.x,
+      y: event.offsetY - orrery.orreryCenter.y,
+    });
+  }
+});
+
+canvas.addEventListener("mouseleave", function (event) {
+  for (const body of bodies) {
+    body.updateHover(false);
+  }
 });
 
 function updateLabel(body: CelestialBody) {
