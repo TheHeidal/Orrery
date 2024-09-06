@@ -7,9 +7,9 @@
 import { degToRad } from "./modules/misc.js";
 import type { CelestialBody } from "./modules/celestialbodies.js";
 import { Star, Planet } from "./modules/celestialbodies.js";
-import { Orrery } from "./modules/types.js";
+import { LineStyle, Orrery, Point } from "./modules/types.js";
 
-export var distances = {
+var distances = {
   sun: 265,
   mon: 250,
   txt: 215,
@@ -44,13 +44,12 @@ var colors = {
 const canvas = document.querySelector(".myCanvas") as HTMLCanvasElement;
 canvas.height = canvas.width = 700;
 const ctx = canvas.getContext("2d");
-//TODO: refactor to create ring and token paths where they actually are
-/** 
- * @param mousePosition: position of the mouse relative to the center of the orrery.
-*/
+/**
+ * @param mousePosition: position of the mouse relative to the canvas origin, irrespective of transformations.
+ */
 const orrery: Orrery = {
   canvas: ctx,
-  orreryCenter: { x: canvas.width / 2, y: canvas.height / 2 },
+  center: { x: canvas.width / 2, y: canvas.height / 2 },
   mousePosition: false,
 };
 
@@ -187,14 +186,11 @@ function drawBG() {
 function drawOrrery() {
   drawBG();
 
-  ctx.save();
-  ctx.translate(orrery.orreryCenter.x, orrery.orreryCenter.y);
-
   //Sun ring
   ctx.lineWidth = 3;
   ctx.strokeStyle = "red";
   ctx.beginPath();
-  ctx.arc(0, 0, distances.sun, 0, degToRad(360));
+  ctx.arc(orrery.center.x, orrery.center.y, distances.sun, 0, degToRad(360));
   ctx.stroke();
 
   //Rings
@@ -203,13 +199,17 @@ function drawOrrery() {
   }
 
   //Divisions
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = colors.nearBlack;
-  subdivide(distances.mon, distances.sat, 12);
-
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = colors.offWhite;
   subdivide(
+    { strokeStyle: colors.nearBlack, lineWidth: 2 },
+    orrery.center,
+    distances.mon,
+    distances.sat,
+    12
+  );
+
+  subdivide(
+    { strokeStyle: colors.offWhite, lineWidth: 2 },
+    orrery.center,
     (distances.sat - distances.jup) * 0.7 + distances.jup,
     (distances.sat - distances.jup) * 0.3 + distances.jup,
     36,
@@ -218,18 +218,35 @@ function drawOrrery() {
 
   ctx.lineWidth = 1;
   ctx.strokeStyle = colors.nearBlack;
-  subdivide(distances.jup, distances.moo, 12);
+  subdivide(
+    { strokeStyle: colors.nearBlack, lineWidth: 1 },
+    orrery.center,
+    distances.jup,
+    distances.moo,
+    12
+  );
 
-  ctx.setLineDash([5, 3]);
-  subdivide(distances.jup, distances.moo, 12, 15);
-  subdivide(distances.jup, distances.mar, 24, 7.5);
-  ctx.setLineDash([]);
+  subdivide(
+    { strokeStyle: colors.nearBlack, lineWidth: 1, lineDash: [5, 3] },
+    orrery.center,
+    distances.jup,
+    distances.moo,
+    12,
+    15
+  );
+  subdivide(
+    { strokeStyle: colors.nearBlack, lineWidth: 1, lineDash: [5, 3] },
+    orrery.center,
+    distances.jup,
+    distances.mar,
+    24,
+    7.5
+  );
 
   //Tokens
   for (var body of bodies) {
     body.drawToken(ctx);
   }
-  ctx.restore();
 
   /**
    * Draws equally spaced lines about the origin from outerRadius to innerRadius
@@ -239,19 +256,28 @@ function drawOrrery() {
    * @param {Number} offsetAngle offset from the x-axis in degrees
    */
   function subdivide(
-    //TODO: make it use Style and take context as an argument.
+    //TODO: is it worth optimizing it so we don't recreate the path every frame?
+    style: LineStyle,
+    center: Point,
     outerRadius: number,
     innerRadius: number,
     divisions: number,
     offsetAngle: number = 0
   ) {
+    ctx.strokeStyle = style.strokeStyle;
+    ctx.lineWidth = style.lineWidth;
+    ctx.setLineDash("lineDash" in style ? style.lineDash : []);
+    ctx.save();
+    ctx.translate(center.x, center.y);
+    ctx.beginPath();
+    ctx.rotate(degToRad(offsetAngle));
     for (let i = 0; i < divisions; i++) {
-      ctx.beginPath();
-      const angle = degToRad((360 / divisions) * i + offsetAngle);
-      ctx.moveTo(outerRadius * Math.cos(angle), outerRadius * Math.sin(angle));
-      ctx.lineTo(innerRadius * Math.cos(angle), innerRadius * Math.sin(angle));
-      ctx.stroke();
+      ctx.rotate((2 * Math.PI) / divisions);
+      ctx.moveTo(outerRadius, 0);
+      ctx.lineTo(innerRadius, 0);
     }
+    ctx.stroke();
+    ctx.restore();
   }
 }
 
@@ -289,8 +315,8 @@ canvas.addEventListener(
 
 canvas.addEventListener("mousemove", function (event) {
   orrery.mousePosition = {
-    x: event.offsetX - orrery.orreryCenter.x,
-    y: event.offsetY - orrery.orreryCenter.y,
+    x: event.offsetX,
+    y: event.offsetY,
   };
   for (const body of bodies) {
     body.updateHover(orrery.mousePosition);

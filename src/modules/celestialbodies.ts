@@ -1,5 +1,14 @@
 import { degToRad } from "./misc.js";
-import type { Name, Orrery, Point, Style, StyleSet, TextStyle } from "./types.js";
+import type {
+  Name,
+  Orrery,
+  Point,
+  Style,
+  StyleSet,
+  TextStyle,
+} from "./types.js";
+
+//TODO:
 
 /**
  * A planet on the Orrery, representing both the token and the ring it is on.
@@ -70,8 +79,22 @@ export abstract class CelestialBody {
     } else this.tokenStyleSet = { default: tokenStyle };
 
     this.ringPath = new Path2D();
-    this.ringPath.arc(0, 0, this.outerRadius, 0, degToRad(360), false);
-    this.ringPath.arc(0, 0, this.innerRadius, 0, degToRad(360), true);
+    this.ringPath.arc(
+      this.orrery.center.x,
+      this.orrery.center.y,
+      this.outerRadius,
+      0,
+      degToRad(360),
+      false
+    );
+    this.ringPath.arc(
+      this.orrery.center.x,
+      this.orrery.center.y,
+      this.innerRadius,
+      0,
+      degToRad(360),
+      true
+    );
     // tokenPath has to be calculated by the subclass
 
     this.tokenAngle = divisionsTokenSpans * (360 / numDivisions);
@@ -130,7 +153,7 @@ export abstract class CelestialBody {
 
   /**
    *
-   * @param position a point relative to the center of the orrery
+   * @param position a point relative to the canvas origin.
    */
   isPointInRing(position: Point): boolean {
     return this.orrery.canvas.isPointInPath(
@@ -164,7 +187,7 @@ export abstract class CelestialBody {
   }
 
   /**
-   * @param position A position relative the center of the orrery
+   * @param position A position relative the canvas origin
    */
   isPointInToken(position: Point): boolean {
     return this.orrery.canvas.isPointInPath(
@@ -197,25 +220,28 @@ export abstract class CelestialBody {
     return this.wsPosition + this.tokenAngle;
   }
 }
+
 /**Celestial Bodies with pie-crust shaped tokens */
 export class Planet extends CelestialBody {
   updateTokenPath(): void {
     this.tokenPath = new Path2D();
     this.tokenPath.arc(
-      0,
-      0,
+      this.orrery.center.x,
+      this.orrery.center.y,
       this.outerRadius,
       degToRad(this.wsPosition),
       degToRad(this.cwPosition),
       false
     );
     this.tokenPath.lineTo(
-      this.innerRadius * Math.cos(degToRad(this.cwPosition)),
-      this.innerRadius * Math.sin(degToRad(this.cwPosition))
+      this.orrery.center.x +
+        this.innerRadius * Math.cos(degToRad(this.cwPosition)),
+      this.orrery.center.y +
+        this.innerRadius * Math.sin(degToRad(this.cwPosition))
     );
     this.tokenPath.arc(
-      0,
-      0,
+      this.orrery.center.x,
+      this.orrery.center.y,
       this.innerRadius,
       degToRad(this.cwPosition),
       degToRad(this.wsPosition),
@@ -309,7 +335,14 @@ export class Star extends CelestialBody {
     var x = this.tokenCenterpoint.x;
     var y = this.tokenCenterpoint.y;
     var tokenRadius = this.tokenRadius;
-    this.tokenPath.arc(x, y, tokenRadius, 0, degToRad(360), false);
+    this.tokenPath.arc(
+      this.orrery.center.x + x,
+      this.orrery.center.y + y,
+      tokenRadius,
+      0,
+      degToRad(360),
+      false
+    );
   }
 
   drawRing(context: CanvasRenderingContext2D): void {
@@ -319,6 +352,7 @@ export class Star extends CelestialBody {
 
   drawLabels(context: CanvasRenderingContext2D): void {
     context.save();
+    context.translate(this.orrery.center.x, this.orrery.center.y);
     context.rotate(degToRad(360 / (2 * this.numDivisions)));
     context.fillStyle = this.textStyle.fillStyle;
     context.textAlign = this.textStyle.textAlign;
