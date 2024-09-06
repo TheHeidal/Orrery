@@ -138,8 +138,6 @@ export abstract class CelestialBody {
 
   /**
    * Draws the ring onto the given context with its center on the origin
-   *
-   * . Does not do subdivisions, stroke or text! (yet)
    * @param {CanvasRenderingContext2D} context
    */
   drawRing(context: CanvasRenderingContext2D) {
